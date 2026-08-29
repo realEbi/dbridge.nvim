@@ -11,6 +11,9 @@ M.tree = nil
 
 -- active session per connection node id
 local _sessions = {}
+-- id of the connection the user last interacted with; disambiguates which
+-- session <leader>r targets when several profiles are connected at once
+local _active_id = nil
 
 local function node(text, type, extra, children)
   local data = vim.tbl_extend("force", { text = text, _type = type }, extra or {})
@@ -18,6 +21,16 @@ local function node(text, type, extra, children)
 end
 
 local function render() M.tree:render() end
+
+--- Walk up from any node to the connection root it belongs to.
+local function connection_root(n)
+  while n and n._type ~= "connection" do
+    local pid = n:get_parent_id()
+    if not pid then return nil end
+    n = M.tree:get_node(pid)
+  end
+  return n
+end
 
 local function add_column_nodes(parent_id, session_id, fqn)
   client.request("dbridge/getTableSchema", { session_id = session_id, fqn = fqn }, function(result, err)
@@ -60,7 +73,10 @@ local function build_schema_tree(conn_node_id, session_id)
             for _, tbl in ipairs(tables or {}) do
               local fqn = db .. "." .. sc .. "." .. tbl
               local tbl_node = node(" " .. tbl, "table", {
-                _session_id = session_id, _fqn = fqn, _loaded = false,
+                _session_id = session_id,
+                _fqn = fqn,      -- database.schema.table, for getTableSchema
+                _table = tbl,    -- bare name, for generated SQL (see init.lua)
+                _loaded = false,
               })
               M.tree:add_node(tbl_node, sc_node:get_id())
             end
@@ -77,6 +93,7 @@ end
 local function connect_profile(n)
   -- already connected: just toggle
   if _sessions[n:get_id()] then
+    _active_id = n:get_id()
     if n:is_expanded() then n:collapse() else n:expand() end
     render(); return
   end
@@ -86,6 +103,7 @@ local function connect_profile(n)
     end
     local sid = result.session_id
     _sessions[n:get_id()] = sid
+    _active_id = n:get_id()
     n._session_id = sid
     build_schema_tree(n:get_id(), sid)
     n:expand(); vim.schedule(render)
@@ -104,6 +122,8 @@ end
 function M.handle_enter()
   local n = M.tree:get_node()
   if not n then return end
+  local root = connection_root(n)
+  if root and _sessions[root:get_id()] then _active_id = root:get_id() end
   local t = n._type
   if t == "connection" then
     connect_profile(n)
@@ -121,13 +141,27 @@ function M.handle_enter()
   end
 end
 
+--- Session that queries run against.
+---
+--- Prefers the connection under the cursor, then the one the user last
+--- interacted with, then any connected one. Returning "the first expanded
+--- connection" silently sent queries to the wrong database whenever more than
+--- one profile was connected.
 function M.get_active_session()
-  -- return session_id of the first expanded connection
-  local roots = M.tree:get_nodes()
-  for _, n in ipairs(roots) do
-    if n:is_expanded() and _sessions[n:get_id()] then
-      return _sessions[n:get_id()]
+  -- tree:get_node() reads the CURRENT window's cursor, so it is only meaningful
+  -- while the explorer is focused. <leader>r fires from the editor panel, where
+  -- it would resolve against the wrong window.
+  if M.panel and M.panel.winid == vim.api.nvim_get_current_win() then
+    local under_cursor = connection_root(M.tree:get_node())
+    if under_cursor and _sessions[under_cursor:get_id()] then
+      return _sessions[under_cursor:get_id()]
     end
+  end
+  if _active_id and _sessions[_active_id] then
+    return _sessions[_active_id]
+  end
+  for _, n in ipairs(M.tree:get_nodes()) do
+    if _sessions[n:get_id()] then return _sessions[n:get_id()] end
   end
 end
 
@@ -170,6 +204,7 @@ function M.handle_delete()
     if sid then
       client.request("dbridge/disconnect", { session_id = sid }, function() end)
       _sessions[n:get_id()] = nil
+      if _active_id == n:get_id() then _active_id = nil end
     end
     M.tree:remove_node(n:get_id())
     vim.schedule(render)
@@ -221,13 +256,21 @@ function M.init()
     end,
   })
   -- expand/collapse with l/h
+  local function mark_active(n)
+    local root = connection_root(n)
+    if root and _sessions[root:get_id()] then _active_id = root:get_id() end
+  end
   M.panel:map("n", "l", function()
     local n = M.tree:get_node()
-    if n and n:expand() then render() end
+    if not n then return end
+    mark_active(n)
+    if n:expand() then render() end
   end, opts)
   M.panel:map("n", "h", function()
     local n = M.tree:get_node()
-    if n and n:collapse() then render() end
+    if not n then return end
+    mark_active(n)
+    if n:collapse() then render() end
   end, opts)
 
   -- Load saved profiles into the tree. No need to wait for the server to be

@@ -60,7 +60,11 @@ local function init_keymaps()
   explorer.panel:map("n", "<CR>", function()
     local n = explorer.handle_enter()
     if n and n._type == "table" then
-      local sql = "SELECT * FROM " .. n._fqn .. " LIMIT 100"
+      -- The bare table name, not n._fqn. Qualification is dialect-specific:
+      -- sqlite has no catalog level, so the tree's database.schema.table would
+      -- be "main.main.users" and fail to parse. Both adapters resolve a bare
+      -- name against the default search path.
+      local sql = "SELECT * FROM " .. n._table .. " LIMIT 100"
       editor.set_sql(sql)
       run_sql(sql)
     end
