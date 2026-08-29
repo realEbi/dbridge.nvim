@@ -131,9 +131,9 @@ return {
 }
 ```
 
-> **Known limitation:** the source currently sends only the text before the
-> cursor *on the current line*, so completion returns nothing for statements
-> spanning multiple lines. Tracked as Phase 2 issue 04 in the server repo.
+Completion is cursor-aware: the whole buffer is sent along with the cursor's
+byte offset, so a `SELECT` on one line resolves columns from a `FROM` on
+another.
 
 ## Development
 
