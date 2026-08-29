@@ -47,7 +47,20 @@ end
 
 function M.start(cmd)
   if _job_id then return end
-  _job_id = vim.fn.jobstart(cmd, {
+
+  -- jobstart() throws E475 when argv[1] is not executable, so check first and
+  -- report something the user can act on.
+  if vim.fn.executable(cmd[1]) ~= 1 then
+    vim.notify(
+      ("[dbridge] server command %q not found on PATH.\n"):format(cmd[1])
+        .. "Install the server (`pip install dbridge`), or point the plugin at it:\n"
+        .. '  require("dbridge").setup({ server_cmd = { "uv", "run", "python", "-m", "dbridge.server" } })',
+      vim.log.levels.ERROR
+    )
+    return false
+  end
+
+  local ok, job = pcall(vim.fn.jobstart, cmd, {
     on_stdout = on_stdout,
     on_stderr = function(_, data, _)
       local msg = table.concat(data, "")
@@ -61,10 +74,16 @@ function M.start(cmd)
     end,
     stdout_buffered = false,
   })
-  if _job_id <= 0 then
-    _job_id = nil
-    vim.notify("[dbridge] failed to start server: " .. table.concat(cmd, " "), vim.log.levels.ERROR)
+  if not ok or job <= 0 then
+    vim.notify(
+      "[dbridge] failed to start server: " .. table.concat(cmd, " ") ..
+        (ok and "" or ("\n" .. tostring(job))),
+      vim.log.levels.ERROR
+    )
+    return false
   end
+  _job_id = job
+  return true
 end
 
 function M.stop()

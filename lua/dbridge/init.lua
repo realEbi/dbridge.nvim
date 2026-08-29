@@ -9,8 +9,10 @@ local _layout = nil
 local _hidden = false
 
 local _cfg = {
-  -- command to start the dbridge server
-  server_cmd = { "python", "-m", "dbridge.server" },
+  -- Command to start the dbridge server. Defaults to the console script the
+  -- server package installs; override for a venv/uv checkout, e.g.
+  --   server_cmd = { "uv", "run", "python", "-m", "dbridge.server" }
+  server_cmd = { "dbridge" },
 }
 
 local function execute_sql()
@@ -76,7 +78,7 @@ function M.setup(opts)
 end
 
 local function open()
-  client.start(_cfg.server_cmd)
+  if client.start(_cfg.server_cmd) == false then return end
   explorer.init()
   editor.init()
   results.init()

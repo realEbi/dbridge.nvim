@@ -1,6 +1,11 @@
 # DBridge.nvim
 
-A neovim plugin for [dbridge](https://github.com/e3oroush/dbridge) to interact with different databases inside neovim using [nui.nvim](https://github.com/MunifTanjim/nui.nvim).
+A Neovim plugin for [dbridge](https://github.com/realebi/dbridge) to interact with
+different databases inside Neovim, using [nui.nvim](https://github.com/MunifTanjim/nui.nvim).
+
+The plugin spawns the dbridge server as a child process and talks to it over
+**stdio JSON-RPC 2.0** with LSP-style `Content-Length` framing. There is no HTTP
+server to start and no port to configure.
 
 ![Screenshot](assets/mysql-employees.png)
 
@@ -8,37 +13,27 @@ A neovim plugin for [dbridge](https://github.com/e3oroush/dbridge) to interact w
 
 - [Installation](#installation)
 - [Usage](#usage)
+- [Connection profiles](#connection-profiles)
+- [Autocompletion](#autocompletion)
+- [Development](#development)
 - [License](#license)
 
 ## Installation
 
-**requires nvim>=0.10**
+**Requires nvim >= 0.10.**
 
-You should also make sure to install [dbridge](https://github.com/e3oroush/dbridge) server app and run it.
+Install the [dbridge](https://github.com/realebi/dbridge) server so its `dbridge`
+console script is on your `PATH`:
 
 ```bash
 pip install dbridge
 ```
 
-- packer.nvim:
-
-  ```lua
-  use {
-    "e3oroush/dbridge.nvim",
-    requires = {
-      "MunifTanjim/nui.nvim",
-    },
-    config = function()
-      require("dbridge").setup()
-    end
-  }
-  ```
-
 - lazy.nvim:
 
   ```lua
   {
-    "e3oroush/dbridge.nvim",
+    "realebi/dbridge.nvim",
     dependencies = {
       "MunifTanjim/nui.nvim",
     },
@@ -48,45 +43,77 @@ pip install dbridge
   },
   ```
 
-## Usage
+- packer.nvim:
 
-To start the DBridge UI, write the command `:Dbxplore` and it will open a new tab that you can add a new db connection. To go back and forth between the current tab and DBridge tab, you might want to use default `gt` to swtich the tab, or run the command `:Dbxplore` again to hide it.
+  ```lua
+  use {
+    "realebi/dbridge.nvim",
+    requires = {
+      "MunifTanjim/nui.nvim",
+    },
+    config = function()
+      require("dbridge").setup()
+    end
+  }
+  ```
 
-You can use the following keybindings on the dbexplorer tree:
+### Pointing at a different server
 
-- Press `a` to add a new connection
-- Press `Enter` to open a connection/database/schema/table
-- Press `e` on 󱘖 connection node to edit a connection
-- Press `DD` on a 󱘖 connection/ saved query to delete them
-- Press `R` on a 󱘖 connection/ database/ table to refresh the data
-- Press `l` and `h` to expand and collapse any node
+`setup()` takes `server_cmd`, the argv used to spawn the server. It defaults to
+`{ "dbridge" }`. Override it when the server lives in a virtualenv or a local
+checkout rather than on your `PATH`:
 
-The following keybindings are for the other two panels:
-
-- Press `<leader>r` to run a query on the query panel
-- Press `n` and `p` to get the next and previous page of data on the query result panel.
-
-### Specifying a connection
-
-Any database connection has its own set of configurations. DBridge is quite flexible to support any number of complicated configurations in json key-values.  
-The database should be supported by [dbridge](https://github.com/e3oroush/dbridge), for example to connect to a mysql adapter:
-
-```json
-{
-  "name": "classicmodels-mysql",
-  "connection_config": {
-    "user": "user",
-    "database": "classicmodels",
-    "password": "pass",
-    "host": "127.0.0.1"
-  },
-  "adapter": "mysql"
-}
+```lua
+require("dbridge").setup({
+  server_cmd = { "uv", "run", "--directory", "/path/to/dbridge", "python", "-m", "dbridge.server" },
+})
 ```
 
-### Enabling dbridge-cmp
+If the command is not executable, the plugin reports that instead of opening.
 
-To add autocompletion, you need `hrsh7th/nvim-cmp` plugin. You can set it using Lazy pluging manager:
+## Usage
+
+Run `:Dbridge` to open the UI in a new tab: a profile/schema explorer on the
+left, a SQL editor and a results panel on the right. Run `:Dbridge` again to
+hide it, or `gt` to switch tabs.
+
+Explorer tree:
+
+- `a` — add a profile
+- `e` — edit the profile under the cursor
+- `<CR>` — open a profile / database / schema / table
+- `DD` — delete the profile under the cursor
+- `R` — refresh schema for the node under the cursor
+- `l` / `h` — expand and collapse a node
+
+Editor and results panels:
+
+- `<leader>r` — run the buffer, or the visual selection, as a query
+- `n` / `p` — next / previous page of results
+
+## Connection profiles
+
+Profiles are named database configurations owned by the **server** and stored in
+`~/.config/dbridge/connections.toml`. The plugin never reads or writes that file
+directly — it goes through `dbridge/listProfiles`, `dbridge/saveProfile`, and
+`dbridge/deleteProfile`.
+
+Press `a` in the explorer and you will be prompted for a name, an adapter, and a
+JSON config blob. The config keys depend on the adapter, for example:
+
+```json
+{ "uri": "/path/to/db.sqlite" }
+```
+
+Supported adapters are whatever the server registers — currently `sqlite` and
+`duckdb`.
+
+## Autocompletion
+
+Completion is served by the server over `dbridge/complete` and exposed as an
+[nvim-cmp](https://github.com/hrsh7th/nvim-cmp) source named `dbridge`, which
+registers itself when nvim-cmp is present. It activates in `sql` buffers while a
+server is running.
 
 ```lua
 return {
@@ -108,9 +135,22 @@ return {
       sources = {
         { name = 'dbridge' },
       },
-    }
+    })
+  end,
 }
+```
 
+> **Known limitation:** the source currently sends only the text before the
+> cursor *on the current line*, so completion returns nothing for statements
+> spanning multiple lines. Tracked as Phase 2 issue 04 in the server repo.
+
+## Development
+
+Tests use [mini.test](https://github.com/nvim-mini/mini.nvim) and run headless:
+
+```bash
+make test              # all tests (clones deps/mini.nvim on first run)
+FILE=tests/test_basic.lua make test_file
 ```
 
 ## License
