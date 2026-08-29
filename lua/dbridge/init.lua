@@ -1,169 +1,125 @@
-local Config = require("dbridge.config")
 local Layout = require("nui.layout")
-local Dbexplorer = require("dbridge.dbexplorer")
-local QueryEditor = require("dbridge.query_editor")
-local QueryResult = require("dbridge.query_result")
-local Dbconnection = require("dbridge.dbconnection")
-local HelpPanel = require("dbridge.help")
-local Api = require("dbridge.api")
+local client = require("dbridge.client")
+local explorer = require("dbridge.explorer")
+local editor = require("dbridge.editor")
+local results = require("dbridge.results")
+
 local M = {}
-M.setup = function(opts)
-	opts = opts or {}
-	Config = vim.tbl_extend("keep", opts, Config)
+local _layout = nil
+local _hidden = false
+
+local _cfg = {
+  -- command to start the dbridge server
+  server_cmd = { "python", "-m", "dbridge.server" },
+}
+
+local function execute_sql()
+  local session_id = explorer.get_active_session()
+  if not session_id then
+    vim.notify("[dbridge] no active connection", vim.log.levels.WARN); return
+  end
+  local sql = editor.get_sql()
+  if sql == "" then return end
+  client.request("dbridge/execute", { session_id = session_id, sql = sql }, function(result, err)
+    if err then
+      vim.notify("[dbridge] execute error: " .. err.message, vim.log.levels.ERROR); return
+    end
+    vim.schedule(function() results.render(result) end)
+  end)
 end
 
-local function applyConfig(connectionConfig)
-	Dbexplorer.addNewRootNode(connectionConfig)
-	Dbconnection.saveConnection(connectionConfig)
-	Dbexplorer.tree:render()
-end
-local function addNewConnection()
-	Dbconnection.newDbConnection(applyConfig)
-end
---- returns the active connectionConfig based on the tree connection expansion
----@return connectionConfig|nil
-local function getActiveConnection()
-	local node = DbExplorer.getExpandedRootNode()
-	if node == nil then
-		return
-	end
-	return node.connectionConfig
+local function init_layout()
+  _layout = Layout(
+    { position = "top", size = "100%", relative = "editor" },
+    Layout.Box({
+      Layout.Box(explorer.panel, { size = "20%" }),
+      Layout.Box({
+        Layout.Box(editor.panel,  { size = "60%" }),
+        Layout.Box(results.panel, { size = "40%" }),
+      }, { dir = "col", size = "80%" }),
+    }, { dir = "row", size = "100%" })
+  )
 end
 
---- Returns the active connection name
----@return string | nil
-local function getActiveConnectionName()
-	local selected = nil
-	local connectionConfig = getActiveConnection()
-	if connectionConfig ~= nil then
-		selected = connectionConfig.name
-	end
-	return selected
+local function init_keymaps()
+  local o = { noremap = true, nowait = true }
+  -- explorer
+  explorer.panel:map("n", "<CR>", function()
+    local n = explorer.handle_enter()
+    -- if a table node was returned, show a sample SELECT
+    if n and n._type == "table" then
+      local sid = explorer.get_active_session()
+      if sid then
+        local sql = "SELECT * FROM " .. n._fqn .. " LIMIT 100"
+        editor.set_sql(sql)
+        client.request("dbridge/execute", { session_id = sid, sql = sql }, function(r, e)
+          if e then vim.notify("[dbridge] " .. e.message, vim.log.levels.ERROR); return end
+          vim.schedule(function() results.render(r) end)
+        end)
+      end
+    end
+  end, o)
+  explorer.panel:map("n", "a", explorer.handle_add_profile, o)
+  explorer.panel:map("n", "e", explorer.handle_edit_profile, o)
+  explorer.panel:map("n", "DD", explorer.handle_delete, o)
+  explorer.panel:map("n", "R", explorer.handle_refresh, o)
+  -- editor: run with <leader>r (normal + visual)
+  editor.panel:map("n", "<leader>r", execute_sql, o)
+  editor.panel:map("v", "<leader>r", execute_sql, o)
+  -- results pagination
+  results.panel:map("n", "n", results.next_page, o)
+  results.panel:map("n", "p", results.prev_page, o)
 end
 
---- Returns the active connection uri
----@return string | nil
-local function getActiveConnectionId()
-	local selected = nil
-	local connectionConfig = getActiveConnection()
-	if connectionConfig ~= nil then
-		selected = connectionConfig.conId
-	end
-	return selected
-end
---- Initialize the layout
-local function initLayout()
-	local layout = Layout(
-		{
-			position = "top",
-			size = "100%",
-			relative = "editor",
-		},
-		Layout.Box({
-			Layout.Box({
-				Layout.Box(Dbexplorer.panel, { size = "90%" }),
-				Layout.Box(HelpPanel.panel, { size = "10%" }),
-			}, { dir = "col", size = "20%" }),
-			Layout.Box({
-				Layout.Box(QueryEditor.panel, { size = "60%" }),
-				Layout.Box(QueryResult.panel, { size = "40%" }),
-			}, { dir = "col", size = "80%" }),
-		}, { dir = "row", size = "100%" })
-	)
-	return layout
-end
-local function initKeyMappings()
-	local mapOptions = { noremap = true, nowait = true }
-	Dbexplorer.panel:map("n", "a", addNewConnection, mapOptions)
-	Dbexplorer.panel:map("n", "e", Dbexplorer.handleEditConnection, mapOptions)
-	Dbexplorer.panel:map("n", "R", Dbexplorer.handleRefresh, mapOptions)
-	Dbexplorer.panel:map("n", "DD", Dbexplorer.handleDelete, mapOptions)
-	Dbexplorer.panel:map("n", "<CR>", function()
-		local resultedReturn = Dbexplorer.handleEnterNode()
-		if resultedReturn == nil then
-			return
-		end
-		local node = resultedReturn.node
-		-- the selected node is a table
-		if node.nodeType == NodeUtils.NodeTypes.TABLE then
-			if node.get_table_query ~= nil then
-				local sampleData = Api.getRequest(node.get_table_query, node.args)
-				QueryResult.renderResult(sampleData)
-				QueryEditor.clearQueryWindow(node, DbExplorer.tree)
-			end
-		end
-		-- the selected node is saved query file
-		if node.nodeType == NodeUtils.NodeTypes.SAVED_QUERY then
-			QueryEditor.openSavedQery(node, Dbexplorer.tree)
-		end
-		if node.nodeType == NodeUtils.NodeTypes.NEW_SAVED_QUERY then
-			QueryEditor.addSavedQuery(node, Dbexplorer.tree)
-		end
-	end, mapOptions)
-	QueryEditor.panel:map("v", "<leader>r", function()
-		local data = QueryEditor.executeQuery(getActiveConnectionId(), QueryEditor.getBufferName())
-		QueryResult.renderResult(data)
-	end, mapOptions)
-	QueryEditor.panel:map("n", "<leader>r", function()
-		local data = QueryEditor.executeQuery(getActiveConnectionId(), QueryEditor.getBufferName())
-		QueryResult.renderResult(data)
-	end, mapOptions)
-	QueryResult.panel:map("n", "n", QueryResult.handleNext, mapOptions)
-	QueryResult.panel:map("n", "p", QueryResult.handlePrev, mapOptions)
-	HelpPanel.panel:map("n", "?", HelpPanel.handleHelp, mapOptions)
+function M.setup(opts)
+  _cfg = vim.tbl_deep_extend("force", _cfg, opts or {})
 end
 
-M.init = function()
-	Dbexplorer.init()
-	QueryEditor.init()
-	QueryResult.init()
-	HelpPanel.init()
-	M.layout = initLayout()
-	M.hide = false
-	initKeyMappings()
-	-- handle when user enter :q
-	local panels = { Dbexplorer.panel, QueryEditor.panel, QueryResult.panel }
-	for _, panel in pairs(panels) do
-		panel:on("BufUnload", function()
-			vim.schedule(function()
-				local currBuffer = vim.api.nvim_get_current_buf()
-				for _, pn in pairs(panels) do
-					if pn.bufnr == currBuffer then
-						return
-					end
-				end
-				M.layout:unmount()
-				vim.g.dbridge_loaded = 0
-				M.hide = true
-				M.init()
-			end)
-		end)
-	end
+local function open()
+  client.start(_cfg.server_cmd)
+  explorer.init()
+  editor.init()
+  results.init()
+  init_layout()
+  init_keymaps()
+
+  -- re-init on close so :Dbridge works again
+  local panels = { explorer.panel, editor.panel, results.panel }
+  for _, p in ipairs(panels) do
+    p:on("BufUnload", function()
+      vim.schedule(function()
+        local cur = vim.api.nvim_get_current_buf()
+        for _, pp in ipairs(panels) do
+          if pp.bufnr == cur then return end
+        end
+        _layout:unmount()
+        vim.g.dbridge_loaded = 0
+        _hidden = true
+        open()
+      end)
+    end)
+  end
+
+  vim.cmd("tabnew")
+  local tmp = vim.fn.bufnr()
+  _layout:mount()
+  vim.api.nvim_set_current_win(explorer.panel.winid)
+  vim.g.dbridge_loaded = 1
+  _hidden = false
+  vim.api.nvim_buf_delete(tmp, { force = true })
 end
 
-vim.api.nvim_create_user_command("DbridgeClearCache", function()
-	Api.clearCache()
+vim.api.nvim_create_user_command("Dbridge", function()
+  if vim.g.dbridge_loaded ~= 1 then
+    open()
+  elseif _hidden then
+    _layout:show()
+    vim.api.nvim_set_current_win(explorer.panel.winid)
+    _hidden = false
+  else
+    _layout:hide()
+    _hidden = true
+  end
 end, {})
-vim.api.nvim_create_user_command("Dbxplore", function()
-	if vim.g.dbridge_loaded ~= 1 then
-		vim.cmd("tabnew")
-		local tempBufNr = vim.fn.bufnr()
-		M.tabNumber = vim.api.nvim_tabpage_get_number(0)
-		M.init()
-		M.layout:mount()
-		vim.api.nvim_set_current_win(DbExplorer.panel.winid)
-		vim.g.dbridge_loaded = 1
-		M.hide = false
-		vim.api.nvim_buf_delete(tempBufNr, { force = true })
-		return
-	end
-	if M.hide then
-		M.layout:show()
-		vim.api.nvim_set_current_win(DbExplorer.panel.winid)
-	else
-		M.layout:hide()
-	end
-	M.hide = not M.hide
-end, {})
-M.getActiveConnectionId = getActiveConnectionId
+
 return M

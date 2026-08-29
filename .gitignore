@@ -1,0 +1,5 @@
+# Test dependency cloned by the Makefile, not source
+deps/
+
+# Editor / tooling local state
+.kiro/
