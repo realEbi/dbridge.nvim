@@ -53,9 +53,31 @@ set `DbExplorer`/`QueryEditor`/`Config` as Lua globals; that pattern is gone.
 
 ## Testing
 
-`make test` runs mini.test headless via `scripts/minimal_init.lua`. Tests that
-touch profiles must point the server at a temp `connections.toml` via its
-`dbridge_`-prefixed env so they never mutate `~/.config/dbridge/`.
+`make test` runs the mini.test suite headless via `scripts/minimal_init.lua`.
+It vendors `deps/mini.nvim` and `deps/nui.nvim` on first run.
+
+Tests execute in a **child Neovim** (`MiniTest.new_child_neovim`), not in the
+test process. This is not optional: the transport is async, so driving it needs
+`vim.wait`, and a nested `vim.wait` re-enters MiniTest's own scheduler — one
+file's hooks end up running another file's cases mid-request. `tests/child_env.lua`
+runs inside the child and does all the blocking; the parent drives it over RPC
+via `tests/helpers.lua`.
+
+Every test spawns the **real** server. Each child gets its own
+`XDG_CONFIG_HOME`, so `connections.toml` is throwaway and the developer's real
+`~/.config/dbridge/` is never touched. Override the server argv with
+`DBRIDGE_SERVER_CMD`.
+
+| File | Covers |
+|---|---|
+| `tests/test_transport.lua` | framing across chunked reads, empty params, introspection, DSP error codes |
+| `tests/test_profiles.lua` | profile CRUD, disk persistence, connect by profile name |
+| `tests/test_results.lua` | column order, truncation, pagination, NULL vs empty, duplicate names |
+| `tests/test_completion.lua` | cursor-aware completion, byte offsets, keyword fallback |
+| `tests/test_lifecycle.lua` | mount, panel close, rebuild, DbridgeClose |
+
+Add integration cases rather than stubbing `client.request`: every defect found
+in Phase 2 was invisible at the unit level.
 
 ## Related
 

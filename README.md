@@ -140,9 +140,13 @@ another.
 Tests use [mini.test](https://github.com/nvim-mini/mini.nvim) and run headless:
 
 ```bash
-make test              # all tests (clones deps/mini.nvim on first run)
-FILE=tests/test_basic.lua make test_file
+make test                              # all tests (vendors deps/ on first run)
+FILE=tests/test_transport.lua make test_file
 ```
+
+Tests spawn the real dbridge server from a sibling `../dbridge` checkout;
+override with `DBRIDGE_SERVER_CMD`. Each test child uses a throwaway
+`XDG_CONFIG_HOME`, so your own profiles are never touched.
 
 ## License
 
