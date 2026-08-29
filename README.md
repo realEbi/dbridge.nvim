@@ -73,7 +73,8 @@ If the command is not executable, the plugin reports that instead of opening.
 
 ## Usage
 
-Run `:Dbridge` to open the UI in a new tab: a profile/schema explorer on the
+Run `:Dbridge` to open the UI in a new tab (`:DbridgeClose` closes it and
+stops the server): a profile/schema explorer on the
 left, a SQL editor and a results panel on the right. Run `:Dbridge` again to
 hide it, or `gt` to switch tabs.
 
@@ -121,16 +122,6 @@ return {
   event = 'InsertEnter',
   config = function()
     local cmp = require 'cmp'
-    cmp.setup {
-      formatting = {
-        format = function(entry, vim_item)
-          if entry.source.name == 'dbridge' then
-            return require('dbridge.cmp_format').build_format(entry, vim_item)
-          end
-          return vim_item
-        end,
-      },
-    }
     cmp.setup.filetype({ 'sql' }, {
       sources = {
         { name = 'dbridge' },

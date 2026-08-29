@@ -5,8 +5,13 @@ local editor = require("dbridge.editor")
 local results = require("dbridge.results")
 
 local M = {}
+
 local _layout = nil
 local _hidden = false
+-- Guards the teardown path. Unmounting the layout unloads the panel buffers,
+-- which fires their own BufUnload handlers; without this they would re-enter
+-- teardown (and, previously, open()) and never terminate.
+local _tearing_down = false
 
 local _cfg = {
   -- Command to start the dbridge server. Defaults to the console script the
@@ -15,19 +20,26 @@ local _cfg = {
   server_cmd = { "dbridge" },
 }
 
-local function execute_sql()
+local function run_sql(sql)
   local session_id = explorer.get_active_session()
   if not session_id then
-    vim.notify("[dbridge] no active connection", vim.log.levels.WARN); return
+    vim.notify("[dbridge] no active connection", vim.log.levels.WARN)
+    return
   end
-  local sql = editor.get_sql()
-  if sql == "" then return end
+  if not sql or sql == "" then return end
   client.request("dbridge/execute", { session_id = session_id, sql = sql }, function(result, err)
-    if err then
-      vim.notify("[dbridge] execute error: " .. err.message, vim.log.levels.ERROR); return
-    end
-    vim.schedule(function() results.render(result) end)
+    vim.schedule(function()
+      if err then
+        vim.notify("[dbridge] execute error: " .. err.message, vim.log.levels.ERROR)
+        return
+      end
+      results.render(result)
+    end)
   end)
+end
+
+local function execute_sql()
+  run_sql(editor.get_sql())
 end
 
 local function init_layout()
@@ -36,7 +48,7 @@ local function init_layout()
     Layout.Box({
       Layout.Box(explorer.panel, { size = "20%" }),
       Layout.Box({
-        Layout.Box(editor.panel,  { size = "60%" }),
+        Layout.Box(editor.panel, { size = "60%" }),
         Layout.Box(results.panel, { size = "40%" }),
       }, { dir = "col", size = "80%" }),
     }, { dir = "row", size = "100%" })
@@ -45,60 +57,53 @@ end
 
 local function init_keymaps()
   local o = { noremap = true, nowait = true }
-  -- explorer
   explorer.panel:map("n", "<CR>", function()
     local n = explorer.handle_enter()
-    -- if a table node was returned, show a sample SELECT
     if n and n._type == "table" then
-      local sid = explorer.get_active_session()
-      if sid then
-        local sql = "SELECT * FROM " .. n._fqn .. " LIMIT 100"
-        editor.set_sql(sql)
-        client.request("dbridge/execute", { session_id = sid, sql = sql }, function(r, e)
-          if e then vim.notify("[dbridge] " .. e.message, vim.log.levels.ERROR); return end
-          vim.schedule(function() results.render(r) end)
-        end)
-      end
+      local sql = "SELECT * FROM " .. n._fqn .. " LIMIT 100"
+      editor.set_sql(sql)
+      run_sql(sql)
     end
   end, o)
   explorer.panel:map("n", "a", explorer.handle_add_profile, o)
   explorer.panel:map("n", "e", explorer.handle_edit_profile, o)
   explorer.panel:map("n", "DD", explorer.handle_delete, o)
   explorer.panel:map("n", "R", explorer.handle_refresh, o)
-  -- editor: run with <leader>r (normal + visual)
   editor.panel:map("n", "<leader>r", execute_sql, o)
   editor.panel:map("v", "<leader>r", execute_sql, o)
-  -- results pagination
   results.panel:map("n", "n", results.next_page, o)
   results.panel:map("n", "p", results.prev_page, o)
 end
 
-function M.setup(opts)
-  _cfg = vim.tbl_deep_extend("force", _cfg, opts or {})
+--- Tear the UI down exactly once. Safe to call from a BufUnload handler.
+local function teardown()
+  if _tearing_down then return end
+  _tearing_down = true
+  if _layout then
+    pcall(function() _layout:unmount() end)
+  end
+  _layout = nil
+  _hidden = false
+  vim.g.dbridge_loaded = 0
+  _tearing_down = false
 end
 
 local function open()
   if client.start(_cfg.server_cmd) == false then return end
+
   explorer.init()
   editor.init()
   results.init()
   init_layout()
   init_keymaps()
 
-  -- re-init on close so :Dbridge works again
-  local panels = { explorer.panel, editor.panel, results.panel }
-  for _, p in ipairs(panels) do
+  -- Closing any panel tears the whole UI down. It does NOT rebuild it: the
+  -- :Dbridge command already constructs a fresh layout on demand, and
+  -- rebuilding here is what caused the unload/rebuild loop.
+  for _, p in ipairs({ explorer.panel, editor.panel, results.panel }) do
     p:on("BufUnload", function()
-      vim.schedule(function()
-        local cur = vim.api.nvim_get_current_buf()
-        for _, pp in ipairs(panels) do
-          if pp.bufnr == cur then return end
-        end
-        _layout:unmount()
-        vim.g.dbridge_loaded = 0
-        _hidden = true
-        open()
-      end)
+      if _tearing_down then return end
+      vim.schedule(teardown)
     end)
   end
 
@@ -108,11 +113,18 @@ local function open()
   vim.api.nvim_set_current_win(explorer.panel.winid)
   vim.g.dbridge_loaded = 1
   _hidden = false
-  vim.api.nvim_buf_delete(tmp, { force = true })
+  pcall(vim.api.nvim_buf_delete, tmp, { force = true })
 end
 
+function M.setup(opts)
+  _cfg = vim.tbl_deep_extend("force", _cfg, opts or {})
+end
+
+M.open = open
+M.close = teardown
+
 vim.api.nvim_create_user_command("Dbridge", function()
-  if vim.g.dbridge_loaded ~= 1 then
+  if vim.g.dbridge_loaded ~= 1 or not _layout then
     open()
   elseif _hidden then
     _layout:show()
@@ -122,6 +134,19 @@ vim.api.nvim_create_user_command("Dbridge", function()
     _layout:hide()
     _hidden = true
   end
-end, {})
+end, { desc = "Toggle the dbridge UI" })
+
+vim.api.nvim_create_user_command("DbridgeClose", function()
+  teardown()
+  client.stop()
+end, { desc = "Close the dbridge UI and stop the server" })
+
+-- Never build UI while Neovim is exiting; just reap the server process.
+vim.api.nvim_create_autocmd("VimLeavePre", {
+  callback = function()
+    _tearing_down = true
+    client.stop()
+  end,
+})
 
 return M
