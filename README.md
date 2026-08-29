@@ -131,6 +131,25 @@ return {
 }
 ```
 
+### Menu labels
+
+nvim-cmp shows the generic LSP kind, so a table reads as `Class` and a column as
+`Field`. `dbridge.cmp_format` maps those back to dbridge's own vocabulary
+(`table`, `column`, `keyword`) with icons. It is optional:
+
+```lua
+cmp.setup {
+  formatting = {
+    format = function(entry, vim_item)
+      if entry.source.name == 'dbridge' then
+        return require('dbridge.cmp_format').build_format(entry, vim_item)
+      end
+      return vim_item
+    end,
+  },
+}
+```
+
 Completion is cursor-aware: the whole buffer is sent along with the cursor's
 byte offset, so a `SELECT` on one line resolves columns from a `FROM` on
 another.

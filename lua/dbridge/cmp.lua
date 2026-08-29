@@ -68,6 +68,9 @@ function source:complete(params, callback)
           detail = item.detail,
           insertText = item.insert_text,
           sortText = item.sort_key,
+          -- dbridge's own kind, kept alongside the LSP one so cmp_format can
+          -- render "table"/"column" rather than "Class"/"Field"
+          dbridge_kind = item.kind,
         })
       end
       callback({ items = items, isIncomplete = false })

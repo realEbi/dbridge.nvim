@@ -124,6 +124,22 @@ function E.complete_at(lines, row, col)
   return { labels = labels, kinds = kinds, first = first, done = done }
 end
 
+--- Run cmp_format over the first item produced at a cursor position.
+function E.format_at(lines, row, col)
+  local r = E.complete_at(lines, row, col)
+  if not r.first then return { kind = nil, menu = nil } end
+  local vim_item = { kind = "UNTOUCHED" }
+  require("dbridge.cmp_format").build_format({ completion_item = r.first }, vim_item)
+  return { kind = vim_item.kind, menu = vim_item.menu, label = r.first.label }
+end
+
+--- cmp_format against an entry that carries no dbridge kind.
+function E.format_foreign()
+  local vim_item = { kind = "Text" }
+  require("dbridge.cmp_format").build_format({ completion_item = {} }, vim_item)
+  return vim_item
+end
+
 function E.stub_active_session(sid)
   require("dbridge.explorer").get_active_session = function() return sid end
   return true

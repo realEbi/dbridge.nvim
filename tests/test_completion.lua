@@ -77,6 +77,24 @@ T["carries insert_text and sort_key through"] = function()
   eq(type(r.first.sortText), "string")
 end
 
+T["cmp_format renders dbridge kinds, not LSP ones"] = function()
+  local table_item = child.lua_get("_E.format_at(...)", { { "SELECT * FROM " }, 1, 14 })
+  eq(table_item.kind, " table")
+  eq(table_item.menu, "[DBRIDGE]")
+
+  local column_item = child.lua_get("_E.format_at(...)", { { "SELECT ", "FROM users" }, 1, 7 })
+  eq(column_item.kind, " column")
+
+  local keyword_item = child.lua_get("_E.format_at(...)", { { "" }, 1, 0 })
+  eq(keyword_item.kind, "󰌋 keyword")
+end
+
+T["cmp_format leaves an entry without a dbridge kind alone"] = function()
+  local item = child.lua_get("_E.format_foreign()")
+  eq(item.kind, "Text")
+  eq(item.menu, "[DBRIDGE]")
+end
+
 T["returns nothing when there is no active session"] = function()
   child.lua("require('dbridge.explorer').get_active_session = function() return nil end")
   local r = complete_at({ "SELECT * FROM " }, 1, 14)
