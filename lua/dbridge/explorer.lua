@@ -230,15 +230,19 @@ function M.init()
     if n and n:collapse() then render() end
   end, opts)
 
-  -- load saved profiles into tree on init (deferred so server has time to start)
-  vim.defer_fn(function()
-    profiles.list(function(result, _)
-      if not result then return end
-      for name, p in pairs(result) do
+  -- Load saved profiles into the tree. No need to wait for the server to be
+  -- ready: the request queues on the job's stdin and is answered once it is.
+  profiles.list(function(result, err)
+    if err then
+      vim.notify("[dbridge] listProfiles: " .. err.message, vim.log.levels.ERROR)
+      return
+    end
+    vim.schedule(function()
+      for name, p in pairs(result or {}) do
         M.add_profile_node(name, p.adapter, p.config)
       end
     end)
-  end, 500)
+  end)
 end
 
 return M

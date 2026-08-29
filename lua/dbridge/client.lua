@@ -99,10 +99,16 @@ function M.request(method, params, cb)
     cb(nil, { message = "server not running" })
     return
   end
+  -- Lua cannot tell an empty list from an empty map, and json_encode turns `{}`
+  -- into `[]`. DSP params are always an object, and the server rejects an array
+  -- outright, so methods taking no params (listProfiles) must send `{}`.
+  if params == nil or vim.tbl_isempty(params) then
+    params = vim.empty_dict()
+  end
   local id = _next_id
   _next_id = _next_id + 1
   _pending[id] = cb
-  send({ jsonrpc = "2.0", id = id, method = method, params = params or {} })
+  send({ jsonrpc = "2.0", id = id, method = method, params = params })
 end
 
 -- Sync wrapper (blocks via vim.wait)
