@@ -31,6 +31,8 @@ function source:complete(params, callback)
         label = item.label,
         kind = kind_map[item.kind] or vim.lsp.protocol.CompletionItemKind.Text,
         detail = item.detail,
+        -- carried for dbridge.cmp_format, which the README documents
+        type = item.kind,
       })
     end
     callback({ items = items, isIncomplete = false })
