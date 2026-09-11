@@ -7,14 +7,19 @@ The plugin spawns the dbridge server as a child process and talks to it over
 **stdio JSON-RPC 2.0** with LSP-style `Content-Length` framing. There is no HTTP
 server to start and no port to configure.
 
+The Lua client sends requests asynchronously; the current Python server handles
+them sequentially. See [current architecture](docs/architecture.md) for that
+boundary and [roadmap](docs/roadmap.md) for proposed future work.
+
 ![Screenshot](assets/mysql-employees.png)
 
 ## Table of contents
 
 - [Installation](#installation)
 - [Usage](#usage)
-- [Connection profiles](#connection-profiles)
+- [Profiles](#profiles)
 - [Autocompletion](#autocompletion)
+- [Documentation](#documentation)
 - [Development](#development)
 - [License](#license)
 
@@ -92,12 +97,15 @@ Editor and results panels:
 - `<leader>r` — run the buffer, or the visual selection, as a query
 - `n` / `p` — next / previous page of results
 
-## Connection profiles
+## Profiles
 
-Profiles are named database configurations owned by the **server** and stored in
-`~/.config/dbridge/connections.toml`. The plugin never reads or writes that file
-directly — it goes through `dbridge/listProfiles`, `dbridge/saveProfile`, and
-`dbridge/deleteProfile`.
+Profiles are named database configurations owned by the **server**. Its
+`connections.toml` lives in `$XDG_CONFIG_HOME/dbridge` (default
+`~/.config/dbridge`) on Unix-like systems, or `%APPDATA%\dbridge` on Windows.
+The plugin never reads or writes the file directly — it goes through
+`dbridge/listProfiles`, `dbridge/saveProfile`, and `dbridge/deleteProfile`.
+See the [server Profile documentation](https://github.com/realEbi/dbridge/blob/dbridge-2.0/README.md#profiles)
+for storage details.
 
 Press `a` in the explorer and you will be prompted for a name, an adapter, and a
 JSON config blob. The config keys depend on the adapter, for example:
@@ -154,18 +162,20 @@ Completion is cursor-aware: the whole buffer is sent along with the cursor's
 byte offset, so a `SELECT` on one line resolves columns from a `FROM` on
 another.
 
+## Documentation
+
+- [Domain language](CONTEXT.md) — client terms and shared vocabulary
+- [Current architecture](docs/architecture.md) — implemented behavior and limits
+- [Roadmap](docs/roadmap.md) — proposed future outcomes and dependencies
+- [Backlog](docs/backlog/README.md) — deferred ideas, defects, and questions
+- [Agent workflow](AGENTS.md) — which documents to read and update
+- [OpenSpec changes](openspec/changes/) and [capability specs](openspec/specs/) — active work and accepted contracts
+
 ## Development
 
-Tests use [mini.test](https://github.com/nvim-mini/mini.nvim) and run headless:
-
-```bash
-make test                              # all tests (vendors deps/ on first run)
-FILE=tests/test_transport.lua make test_file
-```
-
-Tests spawn the real dbridge server from a sibling `../dbridge` checkout;
-override with `DBRIDGE_SERVER_CMD`. Each test child uses a throwaway
-`XDG_CONFIG_HOME`, so your own profiles are never touched.
+See the [development guide](docs/development.md) for prerequisites, test commands,
+the real-server integration harness, and the OpenSpec workflow. It owns the
+server-command override and test-isolation instructions.
 
 ## License
 

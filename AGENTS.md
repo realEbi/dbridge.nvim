@@ -1,86 +1,113 @@
 # AGENTS.md
 
-Neovim plugin providing a database explorer, SQL editor, and results panel,
-backed by the `dbridge` Python server over **stdio JSON-RPC 2.0** (LSP-style
-`Content-Length` framing). The plugin spawns the server as a child process;
-there is no HTTP and no port.
+dbridge.nvim is a Lua Neovim Client with an explorer, SQL editor, and results
+panel. It spawns the dbridge Python server and uses stdio JSON-RPC 2.0 with
+LSP-style framing. The client is asynchronous; the current server executes
+requests synchronously. There is no HTTP listener or port.
 
-## Directory Overview
+## Before starting work
 
-```
-lua/dbridge/        ← plugin source (8 modules)
-plugin/dbridge.lua  ← auto-loaded entry point; registers the nvim-cmp source
-tests/              ← mini.test suite
-scripts/            ← headless Neovim bootstrap for tests
-deps/mini.nvim/     ← test dependency cloned by the Makefile (gitignored)
-Makefile            ← test runner
-TODO.md             ← deferred features
-```
+1. Read [CONTEXT.md](CONTEXT.md) for domain terms and
+   [current architecture](docs/architecture.md) for implemented behavior.
+2. Read the relevant [roadmap](docs/roadmap.md) outcome and
+   [backlog record](docs/backlog/README.md), including linked server-hosted items.
+3. Inspect active changes, relevant capability specs, source, and tests.
+   Use `openspec list --json` for changes and `openspec list --specs` for specs.
+4. Distinguish implemented behavior, accepted contracts, proposed work, and
+   deferred ideas. Resolve discrepancies explicitly instead of treating a roadmap
+   or a test's title as proof that behavior exists.
 
-## Module Map
+## Documentation ownership
 
-| File | Role |
-|---|---|
-| `lua/dbridge/init.lua` | nui layout, keymaps, `:Dbridge` command, plugin lifecycle |
-| `lua/dbridge/client.lua` | stdio JSON-RPC transport: jobstart, framed read buffer, async + sync requests |
-| `lua/dbridge/profiles.lua` | Profile CRUD over `dbridge/listProfiles`, `saveProfile`, `deleteProfile` |
-| `lua/dbridge/explorer.lua` | Left-panel NuiTree; profiles and schema browsing; owns the active session |
-| `lua/dbridge/editor.lua` | SQL editor panel; whole buffer or visual selection |
-| `lua/dbridge/results.lua` | NuiTable results panel; client-side pagination |
-| `lua/dbridge/cmp.lua` | nvim-cmp source backed by `dbridge/complete` |
-| `lua/dbridge/cmp_format.lua` | Optional icon/label formatting for the cmp menu (public; documented in README) |
+Update the relevant owners in the same change as the work they describe. Link
+to detail owned elsewhere instead of maintaining duplicate descriptions.
 
-## Key Patterns
+| Document | Owns | Update when |
+|---|---|---|
+| [README.md](README.md) | User setup, configuration, commands, keymaps, completion | Public usage or support changes |
+| [CONTEXT.md](CONTEXT.md) | Client vocabulary and references to shared terms | A term is introduced or its meaning changes |
+| [docs/architecture.md](docs/architecture.md) | Current modules, boundaries, state, and limits | Implemented architecture changes |
+| [docs/roadmap.md](docs/roadmap.md) | Future outcomes, proposed sequence, dependencies | Direction changes or an outcome ships |
+| [docs/backlog/](docs/backlog/README.md) | One record per deferred idea, defect, or question | Work is discovered, selected, resolved, or dropped |
+| [docs/development.md](docs/development.md) | Tool setup, workflow commands, verification, publication facts | The development process changes |
+| [openspec/specs/](openspec/specs/) | Accepted, testable client capability contracts | A verified change is synchronized |
+| [openspec/changes/](openspec/changes/) | Proposal, deltas, design, and active tasks | Scope, decisions, implementation, or verification progresses |
+| [openspec/config.yaml](openspec/config.yaml) | Concise OpenSpec context and artifact/operation guidance | Project-wide planning conventions change |
+| AGENTS.md | Reading order, routing, maintenance rules, guardrails | Ownership or engineering conventions change |
 
-**Transport**: everything server-bound goes through `client.request(method,
-params, cb)`, which is **asynchronous** — callbacks run on the event loop, so
-wrap UI work in `vim.schedule`. `client.request_sync` exists for tests and
-blocks via `vim.wait`. `client.start` returns `false` (and notifies) rather than
-throwing when the server command is missing; `jobstart` raises E475 in that
-case, so it is pre-checked with `vim.fn.executable`.
+Record enduring client architectural decisions in `docs/adr/NNNN-short-title.md`
+when one is accepted, with rationale and supersession links. Create that directory
+with its first real decision; do not fabricate historical ADRs or copy server
+decisions as client decisions. Migration rationale can live in its change design.
 
-**Framing**: responses are reassembled in `client.lua`'s `on_stdout` against a
-persistent `_buf`. Chunks arrive split arbitrarily, so never assume one event
-carries one message.
+Current architecture describes code as implemented. The roadmap is future intent.
+Specs are contracts, not proof of conformance; inspect code/tests and record gaps.
+Grow capability specs incrementally as changes touch an area.
 
-**Sessions vs profiles**: a **Profile** is saved config owned by the server; a
-**Session** is a live `session_id` returned by `dbridge/connect`. The plugin
-holds session ids, never connection state. Profiles live only in the server's
-`connections.toml` — do not read or write that file from Lua.
+## OpenSpec workflow
 
-**No module globals**: modules return a table and are `require`d. The old client
-set `DbExplorer`/`QueryEditor`/`Config` as Lua globals; that pattern is gone.
+Use `spec-driven` for features, behavior changes, substantial refactors, and
+workflow migrations. Small spelling/link corrections may be direct edits.
 
-## Testing
+- Explore uncertain scope, then propose one coherent outcome. Create change
+  scaffolds with the OpenSpec CLI; inspect existing specs before adding deltas.
+- Review proposal, requirements/scenarios, design, and tasks. The installed
+  propose skill stops at planning; request apply in a subsequent message before
+  implementation. Design is conditional under the schema.
+- Put testable contracts in delta specs, technical decisions in design, and the
+  only implementation checklist in `tasks.md`. Update planning artifacts when
+  discoveries change the agreed scope or approach.
+- Verify each task before checking it off. Record unrelated findings in the
+  owning backlog, not a commit message or another implementation plan.
+- Before completion, update every affected document above. Record checks run,
+  checks not run, and remaining limitations. Request archive after apply is
+  complete; synchronize verified deltas where relevant and update archive links.
+  Update roadmap outcomes and remaining dependencies without marking a whole
+  milestone done for one finished item.
 
-`make test` runs the mini.test suite headless via `scripts/minimal_init.lua`.
-It vendors `deps/mini.nvim` and `deps/nui.nvim` on first run.
+A documentation/tooling change with no product requirement changes declares
+`skip_specs: true` in its scaffolded `.openspec.yaml`. Do not invent product specs
+just to satisfy validation. Auxiliary skills can assist inside this lifecycle;
+do not introduce phase PRDs, skill-specific task trackers, or duplicate plans.
 
-Tests execute in a **child Neovim** (`MiniTest.new_child_neovim`), not in the
-test process. This is not optional: the transport is async, so driving it needs
-`vim.wait`, and a nested `vim.wait` re-enters MiniTest's own scheduler — one
-file's hooks end up running another file's cases mid-request. `tests/child_env.lua`
-runs inside the child and does all the blocking; the parent drives it over RPC
-via `tests/helpers.lua`.
+The [backlog guide](docs/backlog/README.md) owns the template and status conventions.
+Use stable IDs. Existing server-hosted records retain their current home until an
+explicit transfer updates both repositories. New client-only findings belong here.
 
-Every test spawns the **real** server. Each child gets its own
-`XDG_CONFIG_HOME`, so `connections.toml` is throwaway and the developer's real
-`~/.config/dbridge/` is never touched. Override the server argv with
-`DBRIDGE_SERVER_CMD`.
+## Client/server ownership
 
-| File | Covers |
-|---|---|
-| `tests/test_transport.lua` | framing across chunked reads, empty params, introspection, DSP error codes |
-| `tests/test_profiles.lua` | profile CRUD, disk persistence, connect by profile name |
-| `tests/test_results.lua` | column order, truncation, pagination, NULL vs empty, duplicate names |
-| `tests/test_completion.lua` | cursor-aware completion, byte offsets, keyword fallback |
-| `tests/test_lifecycle.lua` | mount, panel close, rebuild, DbridgeClose |
+This repository owns editor interactions, UI state, and presentation. The
+[server repository](https://github.com/realEbi/dbridge/tree/dbridge-2.0) owns database
+behavior and the shared DSP contract. Use the server's glossary for shared terms;
+do not duplicate its complete protocol specification in client specs.
 
-Add integration cases rather than stubbing `client.request`: every defect found
-in Phase 2 was invisible at the unit level.
+For cross-repository work, name each owner, link the corresponding changes, define
+compatibility, and verify the shared flow. A reference to a server backlog item
+does not authorize modifying that repository. Future concurrency, cancellation,
+or streaming requires agreed server contracts; asynchronous Lua requests alone
+do not supply them.
 
-## Related
+## Engineering guardrails
 
-- Server repo: `../dbridge` — protocol surface, adapters, completion engine
-- Phase 2 plan: `../dbridge/docs/superpowers/plans/2026-08-29-dbridge-phase-2-client-hardening.md`
-- Glossary: `../dbridge/CONTEXT.md`
+- Manage Profiles through RPCs; never read/write the server's TOML from Lua.
+  A Profile is configuration, a Session is live server state identified by ID.
+- Route server calls through `client.request`; schedule UI operations that need
+  the main loop. Keep the blocking `request_sync` wrapper in test helpers.
+- Preserve UTF-8 byte lengths/offsets, object-shaped empty params, and frame
+  reassembly across arbitrary stdout chunks. Do not assume one callback is a frame.
+- Keep server executable checks and actionable startup failures. UI teardown must
+  not rebuild inside an unload handler or re-enter itself; stop the child on exit.
+- Preserve server column order, positional rows, duplicate column names, explicit
+  NULL rendering, and truncation warnings. Local pages are not additional fetches.
+- Modules return tables; do not revive global `DbExplorer`, `QueryEditor`, or
+  `Config` objects. The source map lives in the architecture document.
+- Keep blocking integration waits inside child Neovim instances, not mini.test's
+  parent scheduler. Prefer real-server coverage for protocol/UI boundary changes.
+  Use isolated temporary Profile/data locations and clean up subprocesses.
+- Match checks to risk. Prose-only work needs documentation checks, not invented
+  runtime tests. Follow [development instructions](docs/development.md) for test
+  commands, server overrides, and platform-isolation limits.
+
+Preserve unrelated user changes and generated tool integrations. Project policy
+belongs in the owning docs/configuration, not generated skills. Staging, committing,
+pushing, tagging, publishing, and releases require user authorization.

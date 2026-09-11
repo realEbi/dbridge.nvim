@@ -1,0 +1,37 @@
+schema: spec-driven
+
+context: |
+  dbridge.nvim is a Lua Neovim Client using nui.nvim and optional nvim-cmp.
+  It spawns the dbridge Python server over stdio JSON-RPC with LSP-style framing.
+  Client requests are asynchronous; the current server executes synchronously.
+  Read AGENTS.md for ownership/workflow, CONTEXT.md for client and shared terms,
+  docs/architecture.md for implemented behavior, and docs/development.md for checks.
+  Future outcomes belong in docs/roadmap.md and deferred records in docs/backlog/.
+  This repo owns editor/UI behavior; the server owns database behavior and DSP.
+  Tests use mini.test child Neovim instances and the real server with isolated Profiles.
+
+rules:
+  proposal:
+    - Identify the related backlog record and roadmap outcome, or state that none apply.
+    - Name affected repositories, scope limits, and any shared DSP compatibility impact.
+  specs:
+    - Use CONTEXT.md vocabulary and ground existing behavior in source and tests.
+    - Specify client-visible behavior without duplicating server-owned protocol contracts.
+    - Preserve UTF-8 byte offsets, ordered results, and Profile/Session separation when affected.
+  design:
+    - Distinguish asynchronous client requests from server execution and document state ownership.
+    - Resolve client/server dependencies and reference relevant accepted decisions before changing boundaries.
+  tasks:
+    - Include affected-document updates from the AGENTS.md ownership table.
+    - Give every task a verification method; name owners and shared-flow checks for cross-repository work.
+
+operations:
+  apply:
+    guidance:
+      - Keep the only implementation checklist in this change and unrelated findings in the owning backlog.
+      - Match verification to risk; use isolated Profile/data locations and child-Neovim waits for runtime checks.
+      - Preserve generated integrations and unrelated user changes; report checks run and not run separately.
+  archive:
+    guidance:
+      - Check affected usage, vocabulary, current architecture, roadmap, decisions, and development instructions.
+      - Synchronize only verified requirement deltas and update backlog and roadmap links to the archive.
