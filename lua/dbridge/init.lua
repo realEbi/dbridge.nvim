@@ -42,6 +42,15 @@ local function execute_sql()
   run_sql(editor.get_sql())
 end
 
+local function execute_statement()
+  local sql, reason = editor.get_statement()
+  if not sql then
+    vim.notify("[dbridge] " .. reason, vim.log.levels.INFO)
+    return
+  end
+  run_sql(sql)
+end
+
 local function init_layout()
   _layout = Layout(
     { position = "top", size = "100%", relative = "editor" },
@@ -75,6 +84,7 @@ local function init_keymaps()
   explorer.panel:map("n", "R", explorer.handle_refresh, o)
   editor.panel:map("n", "<leader>r", execute_sql, o)
   editor.panel:map("v", "<leader>r", execute_sql, o)
+  editor.panel:map("n", "<leader>s", execute_statement, o)
   results.panel:map("n", "n", results.next_page, o)
   results.panel:map("n", "p", results.prev_page, o)
 end
@@ -126,6 +136,9 @@ end
 
 M.open = open
 M.close = teardown
+
+vim.api.nvim_create_user_command("DbridgeExecuteStatement", execute_statement,
+  { desc = "Execute the SQL statement at the query-editor cursor" })
 
 vim.api.nvim_create_user_command("Dbridge", function()
   if vim.g.dbridge_loaded ~= 1 or not _layout then

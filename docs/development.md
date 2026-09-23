@@ -58,6 +58,7 @@ always stop child processes through the test hooks.
 | [test_cmp.lua](../tests/test_cmp.lua) | Real nvim-cmp automatic dot triggering, filtering, and Insert confirmation with SQLite/DuckDB, including midword replacement, Unicode identifiers, and multi-line UTF-8 offsets |
 | [test_results.lua](../tests/test_results.lua) | Column order, truncation, pagination, empty results, NULL, duplicate names |
 | [test_lifecycle.lua](../tests/test_lifecycle.lua) | Mount, panel teardown/rebuild, reloading saved Profiles, server shutdown |
+| [test_statements.lua](../tests/test_statements.lua) | Statement boundaries, quoted/commented semicolons, UTF-8 and trigger bodies, plus real SQLite/DuckDB command and mapping execution |
 
 For behavior changes, run the affected test file while iterating, then `make test`
 for changes spanning transport, lifecycle, or shared UI state. Add real-server
