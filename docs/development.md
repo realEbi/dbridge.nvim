@@ -52,6 +52,7 @@ always stop child processes through the test hooks.
 
 | Test file | Existing coverage |
 |---|---|
+| [test_table_queries.lua](../tests/test_table_queries.lua) | Real Enter mapping against SQLite/DuckDB, literal names and duplicate scopes, metadata failures/retry, old-server compatibility, captured Session and late replies |
 | [test_transport.lua](../tests/test_transport.lua) | Large/chunked responses, empty params, introspection, DSP errors, disconnect |
 | [test_profiles.lua](../tests/test_profiles.lua) | Profile CRUD, saved file contents, connect by name and inline configuration |
 | [test_completion.lua](../tests/test_completion.lua) | Cursor-aware completion, keyword fallback, item mapping, menu formatting |

@@ -92,6 +92,13 @@ Explorer tree:
 - `R` — refresh schema for the node under the cursor
 - `l` / `h` — expand and collapse a node
 
+Entering a table loads its metadata, then generates a sample SELECT using the
+server's quoted identifier. This preserves the selected SQLite namespace or DuckDB
+catalog/schema, including names with spaces, quotes, or dots. Metadata failures
+show an error without running a guessed query. Update both server and client for
+this behavior; a successful older-server response without an identifier retains
+legacy bare-name queries and their ambiguity/unusual-name limits.
+
 Editor and results panels:
 
 - `<leader>r` — run the buffer, or the visual selection, as a query

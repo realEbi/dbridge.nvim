@@ -40,8 +40,11 @@ and [database hierarchy](https://github.com/realEbi/dbridge/blob/dbridge-2.0/doc
 
 Ownership: Profile/Session interactions are client work. Identifier and hierarchy
 contracts may require linked server/client changes; do not invent dialect behavior
-in the UI without agreeing on that boundary. The current bare-name SELECT and
-refresh-by-reconnection paths are not completion of this outcome.
+in the UI without agreeing on that boundary. Table activation now consumes
+server-generated quoted identifiers through
+[use-server-table-identifiers](../openspec/changes/archive/2026-09-23-use-server-table-identifiers/),
+with real SQLite/DuckDB coverage of duplicate scopes and unusual names. Refresh,
+Session visibility and other listed outcomes remain separate work.
 
 Completion evidence: real-server client checks for correct query targeting,
 rename/failure cases, Session preservation on refresh, and unambiguous browsing;

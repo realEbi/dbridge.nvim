@@ -20,8 +20,8 @@ local _cfg = {
   server_cmd = { "dbridge" },
 }
 
-local function run_sql(sql)
-  local session_id = explorer.get_active_session()
+local function run_sql(sql, session_id)
+  session_id = session_id or explorer.get_active_session()
   if not session_id then
     vim.notify("[dbridge] no active connection", vim.log.levels.WARN)
     return
@@ -58,16 +58,11 @@ end
 local function init_keymaps()
   local o = { noremap = true, nowait = true }
   explorer.panel:map("n", "<CR>", function()
-    local n = explorer.handle_enter()
-    if n and n._type == "table" then
-      -- The bare table name, not n._fqn. Qualification is dialect-specific:
-      -- sqlite has no catalog level, so the tree's database.schema.table would
-      -- be "main.main.users" and fail to parse. Both adapters resolve a bare
-      -- name against the default search path.
-      local sql = "SELECT * FROM " .. n._table .. " LIMIT 100"
+    explorer.handle_enter(function(n)
+      local sql = "SELECT * FROM " .. n._sql_identifier .. " LIMIT 100"
       editor.set_sql(sql)
-      run_sql(sql)
-    end
+      run_sql(sql, n._session_id)
+    end)
   end, o)
   explorer.panel:map("n", "a", explorer.handle_add_profile, o)
   explorer.panel:map("n", "e", explorer.handle_edit_profile, o)
