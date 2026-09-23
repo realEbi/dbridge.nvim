@@ -102,6 +102,15 @@ legacy bare-name queries and their ambiguity/unusual-name limits.
 Editor and results panels:
 
 - `<leader>r` — run the buffer, or the visual selection, as a query
+- `<leader>s` — run only the statement at the cursor (normal mode)
+
+`:DbridgeExecuteStatement` runs the same statement action from the query editor.
+Semicolons inside strings, quoted identifiers, comments, and SQLite trigger
+bodies do not split the selected statement. A cursor on the terminating semicolon
+selects the preceding statement; whitespace/comments after it belong to the next
+one. Empty or unterminated input is reported without executing SQL. SQLite and
+DuckDB lexical differences use the active Session's Adapter; arbitrary stored
+procedure syntax from other databases is not supported.
 - `n` / `p` — next / previous page of results
 
 The query editor's top bar shows the active Profile, adapter, and Session ID used

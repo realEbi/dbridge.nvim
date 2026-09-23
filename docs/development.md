@@ -62,6 +62,7 @@ always stop child processes through the test hooks.
 | [test_results.lua](../tests/test_results.lua) | Column order, truncation, pagination, empty results, NULL, duplicate names |
 | [test_sessions.lua](../tests/test_sessions.lua) | SQLite/DuckDB Session-preserving refresh, errors and stale replies, multi-Profile targeting and editor indicator |
 | [test_lifecycle.lua](../tests/test_lifecycle.lua) | Mount, panel teardown/rebuild, reloading saved Profiles, server shutdown |
+| [test_statements.lua](../tests/test_statements.lua) | Statement boundaries, quoted/commented semicolons, UTF-8 and trigger bodies, plus real SQLite/DuckDB command and mapping execution |
 
 For behavior changes, run the affected test file while iterating, then `make test`
 for changes spanning transport, lifecycle, or shared UI state. Add real-server

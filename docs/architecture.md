@@ -36,6 +36,7 @@ live Adapters, query execution, schema metadata, and SQL completion semantics.
 | [profiles.lua](../lua/dbridge/profiles.lua) | Profile RPC wrappers and interactive name/adapter/JSON prompts |
 | [explorer.lua](../lua/dbridge/explorer.lua) | NuiTree, Profile nodes, schema browsing, Session bindings and active target selection |
 | [editor.lua](../lua/dbridge/editor.lua) | SQL buffer and whole-buffer/visual-selection execution input |
+| [statements.lua](../lua/dbridge/statements.lua) | Byte-based statement boundaries for cursor execution |
 | [results.lua](../lua/dbridge/results.lua) | Ordered results, warning display, NULL rendering, local pagination |
 | [cmp.lua](../lua/dbridge/cmp.lua) | DSP-backed nvim-cmp source and cursor offsets |
 | [cmp_format.lua](../lua/dbridge/cmp_format.lua) | Optional dbridge-specific menu kinds/icons and label |
@@ -84,8 +85,15 @@ so its temporary tables and in-memory data survive.
 
 ## Query input, results, and completion
 
-Normal execution sends the query buffer; the editor also has a visual-selection
-path. There is no statement-under-cursor extractor. Entering a table waits for getTableSchema and generates
+`<leader>r` sends the query buffer or a visual selection. `<leader>s` and
+`:DbridgeExecuteStatement` select one statement at the query-editor cursor and
+use the same execution/Session flow. The lexical scanner preserves semicolons
+inside quotes, comments, and SQLite trigger bodies and reports empty or
+unterminated input without a request. Live target Adapter metadata distinguishes
+SQLite bracket identifiers/non-nested comments from DuckDB arrays/nested comments.
+It does not validate SQL or implement arbitrary procedural dialect grammars.
+
+Entering a table waits for getTableSchema and generates
 `SELECT * FROM <server-sql-identifier> LIMIT 100` using that node's captured Session.
 The server owns quoting and qualification; the client sends literal table identity
 alongside legacy fqn and never infers dialect rules. A successful response missing

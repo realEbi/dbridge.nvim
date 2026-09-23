@@ -67,9 +67,15 @@ Both are client-owned and need not wait for a new server execution model. Resolv
 storage, Profile rename/delete interactions, and SQL selection semantics in their
 own changes; historical implementation suggestions are not settled designs.
 
+Statement-under-cursor execution is implemented by
+[`execute-statement-under-cursor`](../openspec/changes/archive/2026-09-23-execute-statement-under-cursor/),
+with explicit lexical boundaries, a new command/mapping, and real SQLite/DuckDB
+execution checks. Whole-buffer and visual execution remain available. Saved-query
+management and its Profile naming/storage decisions remain open.
+
 Completion evidence: isolated file-management checks and editor cases covering
 the agreed statement/selection behavior, including strings, comments, and delimiters.
-Neither feature is restored by migrating its documentation.
+The documentation migration alone did not restore either feature.
 
 ### 3. Integrate server-supported long-running and large-result workflows
 
