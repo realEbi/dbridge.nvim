@@ -55,7 +55,10 @@ to `dbridge/connect`; the client stores the returned Session ID by tree node ID.
 
 The tree nests Profile, database, schema, table, and column nodes. Connecting
 fetches database/schema/table listings; column details load on first table
-expansion. Table nodes keep both a three-part metadata name and a bare table name.
+expansion. Table nodes keep a legacy three-part metadata name, literal structured identity,
+a display name, and the SQL identifier returned by the server. First expansion
+shares one metadata request with query activation; failed loading remains retryable.
+Late replies for removed/replaced nodes or torn-down panels are ignored.
 
 Active Session selection first considers the explorer cursor when that panel is
 focused, then the last-interacted connected Profile, then a connected root node.
@@ -82,9 +85,12 @@ so its temporary tables and in-memory data survive.
 ## Query input, results, and completion
 
 Normal execution sends the query buffer; the editor also has a visual-selection
-path. There is no statement-under-cursor extractor. Entering a table generates
-`SELECT * FROM <bare-table-name> LIMIT 100`; dialect-aware quoting and qualification
-are still deferred.
+path. There is no statement-under-cursor extractor. Entering a table waits for getTableSchema and generates
+`SELECT * FROM <server-sql-identifier> LIMIT 100` using that node's captured Session.
+The server owns quoting and qualification; the client sends literal table identity
+alongside legacy fqn and never infers dialect rules. A successful response missing
+the identifier field permits legacy bare-name generation for older servers.
+Explicit null identifiers and metadata errors prevent execution and notify the user.
 
 The results panel renders positional rows against the server's ordered column
 list. Columns are keyed internally by index, preserving duplicate names. JSON

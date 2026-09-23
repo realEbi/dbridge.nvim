@@ -39,24 +39,40 @@ local function connection_root(n)
   return n
 end
 
-local function add_column_nodes(parent_id, session_id, fqn)
-  client.request("dbridge/getTableSchema", { session_id = session_id, fqn = fqn }, function(result, err)
-    if err or not result then return end
-    for _, col in ipairs(result.columns or {}) do
-      local detail = col.data_type .. (col.nullable and "" or " NOT NULL")
-      M.tree:add_node(node(" " .. col.name, "column", { detail = detail }), parent_id)
-    end
-    vim.schedule(render)
+local function load_table(n, on_ready)
+  if n._loading then return end
+  local tree = M.tree
+  n._loading = true
+  client.request("dbridge/getTableSchema", {
+    session_id = n._session_id, fqn = n._fqn, table = n._table_ref,
+  }, function(result, err)
+    vim.schedule(function()
+      if M.tree ~= tree or tree:get_node(n:get_id()) ~= n
+        or not M.panel or not M.panel.bufnr or not vim.api.nvim_buf_is_valid(M.panel.bufnr) then return end
+      n._loading = false
+      if err or not result then
+        vim.notify("[dbridge] table metadata: " .. (err and err.message or "empty response"), vim.log.levels.ERROR)
+        return
+      end
+      -- A missing field identifies an older server. Explicit null/empty values
+      -- from an updated server must never turn into a guessed bare-table query.
+      local identifier = result.sql_identifier
+      if identifier == nil then identifier = n._table end
+      if type(identifier) ~= "string" or identifier == "" then
+        vim.notify("[dbridge] table metadata has no executable identifier; refresh the schema", vim.log.levels.ERROR)
+        return
+      end
+      n._sql_identifier = identifier
+      n._loaded = true
+      for _, col in ipairs(result.columns or {}) do
+        local detail = col.data_type .. (col.nullable and "" or " NOT NULL")
+        tree:add_node(node(" " .. col.name, "column", { detail = detail }), n:get_id())
+      end
+      n:expand()
+      render()
+      if on_ready then on_ready(n) end
+    end)
   end)
-end
-
-local function expand_table(n)
-  if n._loaded then
-    n:expand(); render(); return
-  end
-  n._loaded = true
-  add_column_nodes(n:get_id(), n._session_id, n._fqn)
-  n:expand(); render()
 end
 
 -- Gather a complete replacement off-tree. A failed or superseded load must not
@@ -95,6 +111,7 @@ local function build_schema_tree(n, session_id, current)
               _session_id = session_id,
               _fqn = db.name .. "." .. sc.name .. "." .. tbl,
               _table = tbl,
+              _table_ref = { name = tbl, database = db.name, schema = sc.name },
               _loaded = false,
             })
           end
@@ -174,7 +191,7 @@ function M.add_profile_node(name, adapter, config)
   return n
 end
 
-function M.handle_enter()
+function M.handle_enter(on_table_ready)
   local n = M.tree:get_node()
   if not n then return end
   local root = connection_root(n)
@@ -183,12 +200,13 @@ function M.handle_enter()
   if t == "connection" then
     connect_profile(n)
   elseif t == "table" then
-    if not n._loaded then expand_table(n)
+    if not n._loaded then
+      load_table(n, on_table_ready)
     else
       if n:is_expanded() then n:collapse() else n:expand() end
       render()
+      if on_table_ready then on_table_ready(n) end
     end
-    -- return table info so init.lua can trigger a sample query
     return n
   elseif t == "database" or t == "schema" then
     if n:is_expanded() then n:collapse() else n:expand() end

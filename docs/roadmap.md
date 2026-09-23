@@ -44,9 +44,12 @@ in the UI without agreeing on that boundary.
 
 Implemented in [preserve-and-display-active-session](../openspec/changes/archive/2026-09-23-preserve-and-display-active-session/):
 refresh preserves the live Session and its data, and the query editor displays the
-same Profile/Session target used by execution and completion. Profile rename,
-qualified table selection, and database hierarchy remain separate dependencies;
-this slice does not complete the whole outcome.
+same Profile/Session target used by execution and completion. Table activation
+consumes server-generated quoted identifiers through
+[use-server-table-identifiers](../openspec/changes/archive/2026-09-23-use-server-table-identifiers/),
+with real SQLite/DuckDB coverage of duplicate scopes and unusual names. Profile
+rename and database hierarchy remain separate dependencies; these slices do not
+complete the whole outcome.
 
 Completion evidence: real-server client checks for correct query targeting,
 rename/failure cases, Session preservation on refresh, and unambiguous browsing;
