@@ -9,16 +9,16 @@ them.
 
 ## Documentation and workflow foundation
 
-Status: implemented and verified; OpenSpec archive pending.
+Status: implemented, verified, and archived.
 
-The [documentation migration](../openspec/changes/adopt-openspec-documentation/proposal.md)
+The [documentation migration](../openspec/changes/archive/2026-09-23-adopt-openspec-documentation/proposal.md)
 establishes separate current architecture, future direction, a file-per-item
 backlog, and agent maintenance rules using the same document roles as the server.
 Completion requires verified navigation, preserved deferred intent, project-specific
 OpenSpec guidance, and a recorded verification result. It does not implement the
-product outcomes below. Commit/push and final archive remain separate steps.
+product outcomes below. Publication and later product changes remain separate work.
 
-See the [verification record](../openspec/changes/adopt-openspec-documentation/tasks.md#verification-record)
+See the [verification record](../openspec/changes/archive/2026-09-23-adopt-openspec-documentation/tasks.md#verification-record)
 for checks completed and checks not run.
 
 ## Proposed sequence

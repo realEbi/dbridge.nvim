@@ -57,3 +57,10 @@ Implementation is complete locally. Request the archive workflow to finalize thi
 change and update its links. Client commit/push remains separately authorized;
 include the preserved shared OpenSpec integrations when that commit is requested,
 without including personal tool state or vendored dependencies.
+
+## Archive closeout
+
+Archived on 2026-09-23 during the approved daily-use work. The original migration
+was already committed; its verified documentation-only scope and historical
+checks above remain unchanged. Current product changes have their own linked
+changes and capability specs.

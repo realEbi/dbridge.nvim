@@ -28,3 +28,11 @@ new unqualified SELECT suggestions require the companion server. Vocabulary and
 architectural boundaries are unchanged. No live user GUI, Windows isolation,
 other Neovim versions, or new Lua lint tool were exercised. No commits, pushes or
 releases were made, and the unrelated documentation migration remains untouched.
+
+## Final combined client gate
+
+After integrating all daily-use changes on 2026-09-23, `make test` passed all
+152 cases against the sibling integrated server. This includes the Session,
+generated-identifier, nvim-cmp, statement-selection, and shared live-target
+checks. The server passed 350 tests with 98.71% coverage, mypy, and Ruff.
+Earlier counts above describe isolated feature runs.

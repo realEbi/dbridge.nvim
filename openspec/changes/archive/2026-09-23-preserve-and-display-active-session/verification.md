@@ -15,3 +15,11 @@ UI-only teardown/rebuild Session lifetime remains deferred in client backlog 002
 Integration adds pending-connect and pending-refresh teardown regressions. The combined client passes all 15 Session cases and all 24 generated-table-query cases against the integration server. Nui clears panel buffer IDs on unmount, so validity guards explicitly check for a remaining buffer ID before calling the Neovim API.
 
 The original isolated Session lane also passes all 15 focused cases with its documented `DBRIDGE_SERVER_CMD` override. The earlier whole-suite count of 69 above remains the original pre-integration run; it is not a claim about the final combined suite.
+
+## Final combined client gate
+
+After integrating all daily-use changes on 2026-09-23, `make test` passed all
+152 cases against the sibling integrated server. This includes the Session,
+generated-identifier, nvim-cmp, statement-selection, and shared live-target
+checks. The server passed 350 tests with 98.71% coverage, mypy, and Ruff.
+Earlier counts above describe isolated feature runs.

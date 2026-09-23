@@ -7,3 +7,11 @@
 - Strict OpenSpec validation passes; synchronized specs pass `openspec validate --all --strict --no-interactive`; changed/new-file whitespace and 52 relative documentation links pass.
 
 Both repositories are isolated worktrees. The server is imported from this worktree's own uv environment. Existing unrelated adopt-openspec-documentation remains unarchived. No personal Neovim configuration changed and no commit/push was performed.
+
+## Final combined client gate
+
+After integrating all daily-use changes on 2026-09-23, `make test` passed all
+152 cases against the sibling integrated server. This includes the Session,
+generated-identifier, nvim-cmp, statement-selection, and shared live-target
+checks. The server passed 350 tests with 98.71% coverage, mypy, and Ruff.
+Earlier counts above describe isolated feature runs.
