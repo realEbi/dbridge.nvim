@@ -1,25 +1,4 @@
-# sql-completion Specification
-
-## Purpose
-
-Provide Neovim completion interactions that expose server-resolved SQL columns
-and insert the selected identifier without damaging the surrounding query.
-
-## Requirements
-
-### Requirement: Qualified column completion triggers automatically
-
-With automatic completion enabled, the dbridge source configured, a SQL buffer,
-and an active Session, the Client SHALL request suggestions when the user types
-`.` and display the columns returned by a server supporting qualified completion.
-
-#### Scenario: Dot after a physical-table alias
-- **WHEN** the user types `.` after `p` in `SELECT p FROM products p LIMIT 100`
-- **THEN** the completion menu offers the server's product columns without a manual completion command
-
-#### Scenario: Qualifier after a SELECT comma
-- **WHEN** the user types `.` after the second `p` in `SELECT p.name, p FROM products p LIMIT 100`
-- **THEN** the completion menu offers the product columns for that qualifier
+## MODIFIED Requirements
 
 ### Requirement: Acceptance replaces only the column identifier
 
@@ -57,13 +36,3 @@ suggestions. This SHALL hold with nvim-cmp's default Insert confirmation behavio
 - **WHEN** the user accepts `café` inside the unqualified identifier after multibyte
   text, with the FROM clause on a later line
 - **THEN** the entire identifier is replaced and multibyte text and lines remain intact
-
-### Requirement: Completion preserves full query and byte positions
-
-The Client SHALL preserve the full SQL buffer and UTF-8 cursor byte offset when
-requesting suggestions and SHALL apply column edits at the corresponding buffer
-position, including when multibyte text precedes the cursor.
-
-#### Scenario: Multibyte prefix and later FROM clause
-- **WHEN** the user completes an alias after multibyte text with its FROM clause on a later line
-- **THEN** the correct columns are offered and accepting one preserves the multibyte text and remaining query

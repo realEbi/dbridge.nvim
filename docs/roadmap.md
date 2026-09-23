@@ -103,6 +103,13 @@ companion server's alias-resolution fix, linked from server backlog
 CTE/derived and correlated source inference remain server work; this fix does not
 complete the broader roadmap outcomes above.
 
+Unqualified SELECT completion now has the same whole-identifier replacement in
+[`replace-unqualified-column-completions`](../openspec/changes/archive/2026-09-23-replace-unqualified-column-completions/).
+Real nvim-cmp checks cover comma targets, prefixes, Unicode and midword acceptance,
+and the bare-SELECT keyword menu against the companion server's
+[SELECT target change](https://github.com/realEbi/dbridge/tree/dbridge-2.0/openspec/changes/archive/2026-09-23-complete-unqualified-select-targets).
+Source inference remains server-owned; this does not finish the broader outcomes.
+
 When selecting work, link its OpenSpec change from the owning backlog record.
 Update the current architecture and user docs as behavior ships; update roadmap
 outcomes and remaining dependencies after verification. Keep detailed tasks only

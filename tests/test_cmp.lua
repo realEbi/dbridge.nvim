@@ -139,6 +139,62 @@ for _, adapter in ipairs({ "sqlite", "duckdb" }) do
     accept({ "-- café 🌍", "SELECT 'héllo 🌍', p.category", "FROM products p LIMIT 100" })
   end
 
+  A["unqualified columns after a comma can be filtered and accepted"] = function()
+    local prefix = "SELECT id, "
+    edit({ prefix .. " FROM products" }, 1, #prefix)
+    child.lua("require('cmp').complete()")
+    visible_labels(all_columns)
+    child.type_keys("ca")
+    visible_labels({ "category" })
+    accept({ "SELECT id, category FROM products" })
+  end
+
+  A["typing an unqualified prefix requests matching columns"] = function()
+    local prefix = "SELECT id, "
+    edit({ prefix .. " FROM products" }, 1, #prefix)
+    child.type_keys("n")
+    child.type_keys("a")
+    visible_labels({ "name" })
+    accept({ "SELECT id, name FROM products" })
+  end
+
+  A["unqualified Unicode replacement preserves other lines and multibyte text"] = function()
+    local prefix = "SELECT '🌍', ca"
+    edit({ "-- café", prefix .. "fé", "FROM localized" }, 2, #prefix)
+    child.lua("require('cmp').complete()")
+    visible_labels({ "café" })
+    accept({ "-- café", "SELECT '🌍', café", "FROM localized" })
+  end
+
+  A["bare SELECT displays the server keyword fallback"] = function()
+    edit({ "SELECT " }, 1, #"SELECT ")
+    -- At end of a line normal-mode cursors stop before the final space.
+    child.type_keys("<End>")
+    child.lua("require('cmp').complete()")
+    local result = child.lua_get([[(function()
+      local cmp = require("cmp")
+      local ready = vim.wait(5000, function()
+        local found_from = false
+        for _, entry in ipairs(cmp.get_entries()) do
+          local item = entry:get_completion_item()
+          if item.kind ~= vim.lsp.protocol.CompletionItemKind.Keyword then return false end
+          if item.textEdit ~= nil then return false end
+          if item.label == "FROM" then found_from = true end
+        end
+        return cmp.visible() and found_from
+      end, 10)
+      return ready
+    end)()]])
+    eq(result, true)
+  end
+
+  A["unqualified midword completion replaces the whole identifier"] = function()
+    edit({ "SELECT id, name FROM products" }, 1, #"SELECT id, na")
+    child.lua("require('cmp').complete()")
+    visible_labels({ "name" })
+    accept({ "SELECT id, name FROM products" })
+  end
+
   A["midword completion replaces a Unicode identifier suffix"] = function()
     local prefix = "SELECT '🌍', p.ca"
     edit({ prefix .. "fé FROM localized p" }, 1, #prefix)
