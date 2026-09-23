@@ -19,6 +19,19 @@ function M.set_sql(sql)
   vim.api.nvim_buf_set_lines(M.panel.bufnr, 0, -1, false, vim.split(sql, "\n"))
 end
 
+function M.update_target(target)
+  if not M.panel or not M.panel.winid or not vim.api.nvim_win_is_valid(M.panel.winid) then return end
+  local text = " dbridge | No active Session "
+  if target then
+    local function literal(value)
+      return tostring(value):gsub("[%c]", " "):gsub("%%", "%%%%")
+    end
+    text = " dbridge | " .. literal(target.name) .. " (" .. literal(target.adapter)
+      .. ") | Session " .. literal(target.session_id) .. " "
+  end
+  vim.api.nvim_set_option_value("winbar", text, { win = M.panel.winid })
+end
+
 function M.init()
   M.panel = Split({
     buf_options = { filetype = "sql", buftype = "", swapfile = false },

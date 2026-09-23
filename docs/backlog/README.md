@@ -48,6 +48,7 @@ Relevant source/tests, related records, dependencies, and unresolved questions.
 ## Client items
 
 - [001 - Save and browse reusable SQL queries](001-saved-queries.md)
+- [002 - Session lifetime across UI rebuild](002-ui-rebuild-session-lifetime.md)
 
 ## Server-hosted records
 

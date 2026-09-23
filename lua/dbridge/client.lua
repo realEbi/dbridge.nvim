@@ -7,6 +7,13 @@ local _next_id = 1
 local _pending = {} -- id → callback(result, err)
 local _buf = ""    -- raw receive buffer for partial chunks
 
+local function state_changed()
+  local running = _job_id ~= nil
+  vim.schedule(function()
+    if M.on_state_changed then M.on_state_changed(running) end
+  end)
+end
+
 local function send(msg)
   local body = vim.fn.json_encode(msg)
   local frame = "Content-Length: " .. #body .. "\r\n\r\n" .. body
@@ -68,6 +75,7 @@ function M.start(cmd)
     end,
     on_exit = function(_, code, _)
       _job_id = nil
+      state_changed()
       if code ~= 0 then
         vim.notify("[dbridge] server exited with code " .. code, vim.log.levels.ERROR)
       end
@@ -83,6 +91,7 @@ function M.start(cmd)
     return false
   end
   _job_id = job
+  state_changed()
   return true
 end
 
@@ -90,6 +99,7 @@ function M.stop()
   if _job_id then
     vim.fn.jobstop(_job_id)
     _job_id = nil
+    state_changed()
   end
 end
 

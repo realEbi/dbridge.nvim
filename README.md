@@ -89,13 +89,23 @@ Explorer tree:
 - `e` — edit the profile under the cursor
 - `<CR>` — open a profile / database / schema / table
 - `DD` — delete the profile under the cursor
-- `R` — refresh schema for the node under the cursor
+- `R` — refresh schema for the node under the cursor, preserving its live Session
 - `l` / `h` — expand and collapse a node
 
 Editor and results panels:
 
 - `<leader>r` — run the buffer, or the visual selection, as a query
 - `n` / `p` — next / previous page of results
+
+The query editor's top bar shows the active Profile, adapter, and Session ID used
+for execution and completion. While the explorer is focused, its connected
+Profile under the cursor is the target; in the editor, the last interacted
+connected Profile is used, falling back to another connected Profile. With no
+live target, the bar says `No active Session`.
+
+Schema refresh keeps the same Session, including in-memory data and temporary
+tables. Metadata is replaced after a successful refresh; if refresh or listing
+fails, the previous tree remains visible and the error is reported.
 
 ## Profiles
 

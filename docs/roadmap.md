@@ -40,8 +40,13 @@ and [database hierarchy](https://github.com/realEbi/dbridge/blob/dbridge-2.0/doc
 
 Ownership: Profile/Session interactions are client work. Identifier and hierarchy
 contracts may require linked server/client changes; do not invent dialect behavior
-in the UI without agreeing on that boundary. The current bare-name SELECT and
-refresh-by-reconnection paths are not completion of this outcome.
+in the UI without agreeing on that boundary.
+
+Implemented in [preserve-and-display-active-session](../openspec/changes/archive/2026-09-23-preserve-and-display-active-session/):
+refresh preserves the live Session and its data, and the query editor displays the
+same Profile/Session target used by execution and completion. Profile rename,
+qualified table selection, and database hierarchy remain separate dependencies;
+this slice does not complete the whole outcome.
 
 Completion evidence: real-server client checks for correct query targeting,
 rename/failure cases, Session preservation on refresh, and unambiguous browsing;
