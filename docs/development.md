@@ -57,6 +57,7 @@ always stop child processes through the test hooks.
 | [test_completion.lua](../tests/test_completion.lua) | Cursor-aware completion, keyword fallback, item mapping, menu formatting |
 | [test_cmp.lua](../tests/test_cmp.lua) | Real nvim-cmp automatic dot triggering, filtering, and Insert confirmation with SQLite/DuckDB, including midword replacement, Unicode identifiers, and multi-line UTF-8 offsets |
 | [test_results.lua](../tests/test_results.lua) | Column order, truncation, pagination, empty results, NULL, duplicate names |
+| [test_sessions.lua](../tests/test_sessions.lua) | SQLite/DuckDB Session-preserving refresh, errors and stale replies, multi-Profile targeting and editor indicator |
 | [test_lifecycle.lua](../tests/test_lifecycle.lua) | Mount, panel teardown/rebuild, reloading saved Profiles, server shutdown |
 
 For behavior changes, run the affected test file while iterating, then `make test`

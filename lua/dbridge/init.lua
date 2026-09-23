@@ -97,6 +97,13 @@ local function open()
 
   explorer.init()
   editor.init()
+  explorer.on_active_changed = editor.update_target
+  client.on_state_changed = explorer.server_state_changed
+  local target_group = vim.api.nvim_create_augroup("DbridgeActiveTarget", { clear = true })
+  vim.api.nvim_create_autocmd({ "CursorMoved", "WinEnter", "BufEnter" }, {
+    group = target_group,
+    callback = function() explorer.update_target() end,
+  })
   results.init()
   init_layout()
   init_keymaps()
@@ -116,6 +123,7 @@ local function open()
   _layout:mount()
   vim.api.nvim_set_current_win(explorer.panel.winid)
   vim.g.dbridge_loaded = 1
+  explorer.update_target()
   _hidden = false
   pcall(vim.api.nvim_buf_delete, tmp, { force = true })
 end
