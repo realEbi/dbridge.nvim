@@ -1,9 +1,9 @@
 # Run all test files
-test: deps/mini.nvim deps/nui.nvim
+test: deps/mini.nvim deps/nui.nvim deps/nvim-cmp
 	nvim --headless --noplugin -u ./scripts/minimal_init.lua -c "lua MiniTest.run()"
 
 # Run test from file at `$FILE` environment variable
-test_file: deps/mini.nvim deps/nui.nvim
+test_file: deps/mini.nvim deps/nui.nvim deps/nvim-cmp
 	nvim --headless --noplugin -u ./scripts/minimal_init.lua -c "lua MiniTest.run_file('$(FILE)')"
 
 # 'mini.nvim' provides the 'mini.test' testing module
@@ -15,5 +15,10 @@ deps/mini.nvim:
 deps/nui.nvim:
 	@mkdir -p deps
 	git clone --filter=blob:none https://github.com/MunifTanjim/nui.nvim $@
+
+# Exercise automatic completion and insertion through the real nvim-cmp UI
+deps/nvim-cmp:
+	@mkdir -p deps
+	git clone --filter=blob:none https://github.com/hrsh7th/nvim-cmp $@
 
 .PHONY: test test_file

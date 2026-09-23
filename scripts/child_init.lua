@@ -18,3 +18,4 @@ local function add_dep(name)
 end
 
 add_dep("nui.nvim")
+add_dep("nvim-cmp")

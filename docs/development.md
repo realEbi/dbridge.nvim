@@ -8,7 +8,8 @@ belong in the [README](../README.md).
 
 Use Neovim 0.10 or newer, Git, and make. nui.nvim is the runtime UI dependency;
 nvim-cmp is optional for completion integration. The test runner also uses mini.test
-from mini.nvim. The [Makefile](../Makefile) clones mini.nvim and nui.nvim into
+from mini.nvim. Completion UI tests require nvim-cmp. The [Makefile](../Makefile)
+clones mini.nvim, nui.nvim, and nvim-cmp into
 gitignored `deps/` on first use, requiring network access. Those clones currently
 have no pinned revision in the Makefile.
 
@@ -54,6 +55,7 @@ always stop child processes through the test hooks.
 | [test_transport.lua](../tests/test_transport.lua) | Large/chunked responses, empty params, introspection, DSP errors, disconnect |
 | [test_profiles.lua](../tests/test_profiles.lua) | Profile CRUD, saved file contents, connect by name and inline configuration |
 | [test_completion.lua](../tests/test_completion.lua) | Cursor-aware completion, keyword fallback, item mapping, menu formatting |
+| [test_cmp.lua](../tests/test_cmp.lua) | Real nvim-cmp automatic dot triggering, filtering, and Insert confirmation with SQLite/DuckDB, including midword replacement, Unicode identifiers, and multi-line UTF-8 offsets |
 | [test_results.lua](../tests/test_results.lua) | Column order, truncation, pagination, empty results, NULL, duplicate names |
 | [test_lifecycle.lua](../tests/test_lifecycle.lua) | Mount, panel teardown/rebuild, reloading saved Profiles, server shutdown |
 

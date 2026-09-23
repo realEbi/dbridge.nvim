@@ -162,6 +162,17 @@ Completion is cursor-aware: the whole buffer is sent along with the cursor's
 byte offset, so a `SELECT` on one line resolves columns from a `FROM` on
 another.
 
+With automatic completion enabled and an active Session, typing `.` after a
+table alias opens column suggestions. For example, in
+`SELECT p.name, p.category FROM products p LIMIT 100`, complete after either
+`p.`. Typing `p.na` filters to matching columns; accepting `name` inserts
+`p.name`, including when editing inside an existing column name.
+
+This requires a server with alias-qualified completion support. When testing
+local changes, use the [server command override](#pointing-at-a-different-server),
+restart Neovim, and reconnect the Profile. Physical-table aliases are supported;
+CTE and derived-table column inference remain server limitations.
+
 ## Documentation
 
 - [Domain language](CONTEXT.md) — client terms and shared vocabulary

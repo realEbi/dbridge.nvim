@@ -86,6 +86,15 @@ made by this roadmap.
 
 ## Maintaining progress
 
+Qualified-column interaction is implemented in
+[`trigger-qualified-column-completion`](../openspec/changes/archive/2026-09-23-trigger-qualified-column-completion/):
+typing a dot triggers suggestions, and accepting a column preserves its qualifier
+and replaces the whole identifier. Real nvim-cmp tests exercise this against the
+companion server's alias-resolution fix, linked from server backlog
+[015](https://github.com/realEbi/dbridge/blob/dbridge-2.0/docs/backlog/015-alias-completion.md).
+CTE/derived and correlated source inference remain server work; this fix does not
+complete the broader roadmap outcomes above.
+
 When selecting work, link its OpenSpec change from the owning backlog record.
 Update the current architecture and user docs as behavior ships; update roadmap
 outcomes and remaining dependencies after verification. Keep detailed tasks only
