@@ -107,6 +107,9 @@ function E.complete_at(lines, row, col)
   local editor = require("dbridge.editor")
   vim.api.nvim_set_current_win(editor.panel.winid)
   vim.api.nvim_buf_set_lines(editor.panel.bufnr, 0, -1, false, lines)
+  -- Direct source tests run in Normal mode. Allow the end-of-line byte position
+  -- that Insert-mode completion reports, instead of silently clamping left.
+  vim.wo.virtualedit = "onemore"
   vim.api.nvim_win_set_cursor(editor.panel.winid, { row, col })
 
   local source = E.source or require("dbridge.cmp"):new()

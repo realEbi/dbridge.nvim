@@ -89,10 +89,11 @@ newlines plus the cursor's zero-based UTF-8 byte offset. Per-source sequence
 numbers suppress stale replies. DSP labels, insert text, and sort keys are mapped
 to nvim-cmp items; the optional formatter exposes table/column/keyword vocabulary.
 The source registers `.` as a trigger character, respecting nvim-cmp's automatic
-completion configuration. Qualified column items include a UTF-8 text edit
-covering the post-dot identifier and its suffix after the cursor. Acceptance
-therefore preserves the alias and replaces an existing column name completely,
-including with nvim-cmp's default Insert confirmation behavior.
+completion configuration. All column items include a UTF-8 text edit covering
+the current identifier and its suffix after the cursor. Acceptance preserves any
+alias and replaces an existing qualified or unqualified column name completely,
+including with nvim-cmp's default Insert confirmation behavior. Table and keyword
+items retain their existing insertion mapping.
 Completion quality and dialect support remain server responsibilities.
 
 ## UI and process lifecycle

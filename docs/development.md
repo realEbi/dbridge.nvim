@@ -41,7 +41,9 @@ Tests run headless using [scripts/minimal_init.lua](../scripts/minimal_init.lua)
 The parent drives a **child Neovim** through [tests/helpers.lua](../tests/helpers.lua);
 [tests/child_env.lua](../tests/child_env.lua) performs blocking waits inside the
 child. Keeping `vim.wait` there avoids re-entering mini.test's parent scheduler
-while an asynchronous request is pending. UI tests mount the real nui panels.
+while an asynchronous request is pending. UI tests mount the real nui panels. Direct source checks allow an end-of-line
+cursor byte position with `virtualedit=onemore`, matching Insert mode instead of
+silently clamping the requested offset in Normal mode.
 
 Each test child starts the real server and receives a temporary `XDG_CONFIG_HOME`
 for Profile files. On Unix-like systems this isolates the server configuration
@@ -55,7 +57,7 @@ always stop child processes through the test hooks.
 | [test_transport.lua](../tests/test_transport.lua) | Large/chunked responses, empty params, introspection, DSP errors, disconnect |
 | [test_profiles.lua](../tests/test_profiles.lua) | Profile CRUD, saved file contents, connect by name and inline configuration |
 | [test_completion.lua](../tests/test_completion.lua) | Cursor-aware completion, keyword fallback, item mapping, menu formatting |
-| [test_cmp.lua](../tests/test_cmp.lua) | Real nvim-cmp automatic dot triggering, filtering, and Insert confirmation with SQLite/DuckDB, including midword replacement, Unicode identifiers, and multi-line UTF-8 offsets |
+| [test_cmp.lua](../tests/test_cmp.lua) | Real nvim-cmp automatic dot triggering, filtering, and Insert confirmation with SQLite/DuckDB, including qualified/unqualified SELECT targets, midword replacement, Unicode identifiers, multi-line UTF-8 offsets, and the bare-SELECT keyword menu |
 | [test_results.lua](../tests/test_results.lua) | Column order, truncation, pagination, empty results, NULL, duplicate names |
 | [test_lifecycle.lua](../tests/test_lifecycle.lua) | Mount, panel teardown/rebuild, reloading saved Profiles, server shutdown |
 

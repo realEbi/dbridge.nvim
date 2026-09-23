@@ -168,10 +168,15 @@ table alias opens column suggestions. For example, in
 `p.`. Typing `p.na` filters to matching columns; accepting `name` inserts
 `p.name`, including when editing inside an existing column name.
 
-This requires a server with alias-qualified completion support. When testing
-local changes, use the [server command override](#pointing-at-a-different-server),
-restart Neovim, and reconnect the Profile. Physical-table aliases are supported;
-CTE and derived-table column inference remain server limitations.
+Unqualified SELECT targets also offer columns with a supporting server: request
+completion after the comma in `SELECT id, name FROM products`, or type `na` at
+an empty target. Accepting a column replaces its whole identifier, including any
+suffix after the cursor. A bare `SELECT ` displays the server's dialect keywords.
+
+These suggestions require the corresponding server completion support. When
+testing local changes, use the [server command override](#pointing-at-a-different-server),
+restart Neovim, and reconnect the Profile. CTE and derived-table column inference
+remain server limitations.
 
 ## Documentation
 
