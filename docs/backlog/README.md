@@ -60,7 +60,7 @@ server item 007 is provenance, not another local implementation checklist.
 
 | Existing record | Implementation owner |
 |---|---|
-| [001 - Profile rename](https://github.com/realEbi/dbridge/blob/dbridge-2.0/docs/backlog/001-profile-rename.md) | dbridge.nvim |
+| [001 - Profile rename](https://github.com/realEbi/dbridge/blob/dbridge-2.0/docs/backlog/001-profile-rename.md) | dbridge and dbridge.nvim |
 | [002 - Qualified SQL identifiers](https://github.com/realEbi/dbridge/blob/dbridge-2.0/docs/backlog/002-qualified-identifiers.md) | dbridge and dbridge.nvim |
 | [003 - Database browsing hierarchy](https://github.com/realEbi/dbridge/blob/dbridge-2.0/docs/backlog/003-database-hierarchy.md) | dbridge and dbridge.nvim |
 | [006 - Statement under the cursor](https://github.com/realEbi/dbridge/blob/dbridge-2.0/docs/backlog/006-statement-under-cursor.md) | dbridge.nvim |

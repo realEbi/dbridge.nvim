@@ -88,8 +88,14 @@ bindings and metadata because Session IDs belong to that process. Profile text
 is escaped for statusline rendering. The results statusline retains pages and warnings.
 
 Deleting a Profile through the explorer also requests disconnection of its tracked
-Session. Editing a Profile upserts the entered name; it does not remove an old
-name when renamed. Schema refresh clears the server cache and obtains declared
+Session. Editing a Profile sends its original name as `previous_name` in one
+`dbridge/saveProfile` request. Only a successful reply updates its existing node's
+name, adapter, and config; errors retain the previous definition and report the
+server's message. Renames preserve the node ID, live Session and selected scope,
+and rendering refreshes the query-editor indicator with the new Profile name.
+The Session continues using its original connected configuration. This requires
+a server with `previous_name` support; adding a Profile remains an upsert.
+Schema refresh clears the server cache and obtains declared
 container and table listings using the existing Session. It rereads the
 hierarchy declaration, gathers a replacement subtree off-screen, and swaps children
 and declaration only after all listings succeed. Errors retain the previous

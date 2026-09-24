@@ -60,6 +60,7 @@ always stop child processes through the test hooks.
 | [test_scope_browsing.lua](../tests/test_scope_browsing.lua) | Declared SQLite/DuckDB tiers, internal markers, literal attached paths, scoped completion and real nvim-cmp acceptance/execution, independent buffers, refresh attach/detach selection |
 | [test_transport.lua](../tests/test_transport.lua) | Large/chunked responses, empty params, introspection, DSP errors, disconnect |
 | [test_profiles.lua](../tests/test_profiles.lua) | Profile CRUD, saved file contents, connect by name and inline configuration |
+| [test_profile_editing.lua](../tests/test_profile_editing.lua) | Explorer rename/reload, same-name edits, collision and missing-source errors, success confirmation, and SQLite/DuckDB Session/scope/indicator preservation |
 | [test_completion.lua](../tests/test_completion.lua) | Cursor-aware completion, keyword fallback, item mapping, menu formatting |
 | [test_cmp.lua](../tests/test_cmp.lua) | Real nvim-cmp automatic dot triggering, filtering, and Insert confirmation with SQLite/DuckDB, including qualified/unqualified SELECT targets, midword replacement, Unicode identifiers, multi-line UTF-8 offsets, and the bare-SELECT keyword menu |
 | [test_results.lua](../tests/test_results.lua) | Column order, truncation, pagination, empty results, NULL, duplicate names |
