@@ -40,6 +40,22 @@ T["save upserts without clobbering siblings"] = function()
   eq(listed.beta.adapter, "duckdb")
 end
 
+T["save with previous_name renames over the protocol"] = function()
+  profile("save", "before-rename", "sqlite", { uri = ":memory:" })
+  eq(child.lua_get([[(function()
+    local done, err = false, nil
+    require('dbridge.profiles').save('after-rename', 'sqlite', { uri = ':memory:' }, function(_, e)
+      done, err = true, e
+    end, 'before-rename')
+    assert(_E.wait_for(function() return done end))
+    return err == nil
+  end)()]]), true)
+  local listed = profile("list")
+  eq(listed["before-rename"], nil)
+  eq(listed["after-rename"], { adapter = "sqlite", config = { uri = ":memory:" } })
+  eq(listed.alpha ~= nil, true)
+end
+
 T["delete removes only the named profile"] = function()
   eq(profile("delete", "beta").ok, true)
   local listed = profile("list")

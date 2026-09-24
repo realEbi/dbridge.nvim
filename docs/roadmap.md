@@ -53,7 +53,10 @@ same Profile/Session target used by execution and completion. Table activation
 consumes server-generated quoted identifiers through
 [use-server-table-identifiers](../openspec/changes/archive/2026-09-23-use-server-table-identifiers/),
 with real SQLite/DuckDB coverage of duplicate scopes and unusual names. Profile
-rename remains a separate dependency. Declared hierarchy and explicit scope
+editing and atomic rename are implemented in
+[rename-profiles-atomically](../openspec/changes/archive/2026-09-24-rename-profiles-atomically/),
+including failure feedback and live Session/scope preservation; this requires
+the linked server's `previous_name` support. Declared hierarchy and explicit scope
 selection are implemented in [adopt-explicit-scope-paths](../openspec/changes/archive/2026-09-24-adopt-explicit-scope-paths/),
 with one-tier SQLite browsing, attached DuckDB catalogs, buffer-owned completion
 scopes, and executable qualified insertion verified against the linked server

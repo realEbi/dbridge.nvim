@@ -90,7 +90,7 @@ hide it, or `gt` to switch tabs.
 Explorer tree:
 
 - `a` — add a profile
-- `e` — edit the profile under the cursor
+- `e` — edit or rename the Profile under the cursor
 - `<CR>` — open a Profile / scope container / table
 - `DD` — delete the profile under the cursor
 - `R` — refresh schema for the node under the cursor, preserving its live Session
@@ -157,6 +157,11 @@ The plugin never reads or writes the file directly — it goes through
 `dbridge/listProfiles`, `dbridge/saveProfile`, and `dbridge/deleteProfile`.
 See the [server Profile documentation](https://github.com/realEbi/dbridge/blob/dbridge-2.0/README.md#profiles)
 for storage details.
+
+Press `e` to edit or rename the Profile under the cursor. Renaming requires a
+server with `dbridge/saveProfile` `previous_name` support. A successful rename
+replaces the saved name and keeps an existing Session; a rejected rename leaves
+the original Profile unchanged and displays the server's error.
 
 Press `a` in the explorer and you will be prompted for a name, an adapter, and a
 JSON config blob. The config keys depend on the adapter, for example:

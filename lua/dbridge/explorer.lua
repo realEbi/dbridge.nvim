@@ -358,7 +358,7 @@ function M.handle_edit_profile()
     n._adapter = adapter
     n._config = config
     vim.schedule(render)
-  end, { name = n._name, adapter = n._adapter, config = n._config })
+  end, { name = n._name, adapter = n._adapter, config = n._config }, n._name)
 end
 
 function M.handle_delete()

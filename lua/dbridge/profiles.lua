@@ -6,8 +6,10 @@ function M.list(cb)
   client.request("dbridge/listProfiles", {}, cb)
 end
 
-function M.save(name, adapter, config, cb)
-  client.request("dbridge/saveProfile", { name = name, adapter = adapter, config = config or {} }, cb)
+function M.save(name, adapter, config, cb, previous_name)
+  client.request("dbridge/saveProfile", {
+    name = name, adapter = adapter, config = config or {}, previous_name = previous_name,
+  }, cb)
 end
 
 function M.delete(name, cb)
@@ -16,7 +18,7 @@ end
 
 -- Interactive: prompt user for profile fields, then save.
 -- Pass defaults to pre-fill prompts when editing an existing profile.
-function M.create_interactive(on_done, defaults)
+function M.create_interactive(on_done, defaults, previous_name)
   defaults = defaults or {}
   vim.ui.input({ prompt = "Profile name: ", default = defaults.name or "" }, function(name)
     if not name or name == "" then return end
@@ -36,7 +38,7 @@ function M.create_interactive(on_done, defaults)
             vim.notify("[dbridge] profile '" .. name .. "' saved")
             if on_done then on_done(name, adapter, config) end
           end
-        end)
+        end, previous_name)
       end)
     end)
   end)
