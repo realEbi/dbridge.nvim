@@ -89,13 +89,39 @@ Explorer tree:
 - `e` — edit the profile under the cursor
 - `<CR>` — open a profile / database / schema / table
 - `DD` — delete the profile under the cursor
-- `R` — refresh schema for the node under the cursor
+- `R` — refresh schema for the node under the cursor, preserving its live Session
 - `l` / `h` — expand and collapse a node
+
+Entering a table loads its metadata, then generates a sample SELECT using the
+server's quoted identifier. This preserves the selected SQLite namespace or DuckDB
+catalog/schema, including names with spaces, quotes, or dots. Metadata failures
+show an error without running a guessed query. Update both server and client for
+this behavior; a successful older-server response without an identifier retains
+legacy bare-name queries and their ambiguity/unusual-name limits.
 
 Editor and results panels:
 
 - `<leader>r` — run the buffer, or the visual selection, as a query
+- `<leader>s` — run only the statement at the cursor (normal mode)
+
+`:DbridgeExecuteStatement` runs the same statement action from the query editor.
+Semicolons inside strings, quoted identifiers, comments, and SQLite trigger
+bodies do not split the selected statement. A cursor on the terminating semicolon
+selects the preceding statement; whitespace/comments after it belong to the next
+one. Empty or unterminated input is reported without executing SQL. SQLite and
+DuckDB lexical differences use the active Session's Adapter; arbitrary stored
+procedure syntax from other databases is not supported.
 - `n` / `p` — next / previous page of results
+
+The query editor's top bar shows the active Profile, adapter, and Session ID used
+for execution and completion. While the explorer is focused, its connected
+Profile under the cursor is the target; in the editor, the last interacted
+connected Profile is used, falling back to another connected Profile. With no
+live target, the bar says `No active Session`.
+
+Schema refresh keeps the same Session, including in-memory data and temporary
+tables. Metadata is replaced after a successful refresh; if refresh or listing
+fails, the previous tree remains visible and the error is reported.
 
 ## Profiles
 
@@ -168,10 +194,15 @@ table alias opens column suggestions. For example, in
 `p.`. Typing `p.na` filters to matching columns; accepting `name` inserts
 `p.name`, including when editing inside an existing column name.
 
-This requires a server with alias-qualified completion support. When testing
-local changes, use the [server command override](#pointing-at-a-different-server),
-restart Neovim, and reconnect the Profile. Physical-table aliases are supported;
-CTE and derived-table column inference remain server limitations.
+Unqualified SELECT targets also offer columns with a supporting server: request
+completion after the comma in `SELECT id, name FROM products`, or type `na` at
+an empty target. Accepting a column replaces its whole identifier, including any
+suffix after the cursor. A bare `SELECT ` displays the server's dialect keywords.
+
+These suggestions require the corresponding server completion support. When
+testing local changes, use the [server command override](#pointing-at-a-different-server),
+restart Neovim, and reconnect the Profile. CTE and derived-table column inference
+remain server limitations.
 
 ## Documentation
 

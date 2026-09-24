@@ -36,6 +36,7 @@ live Adapters, query execution, schema metadata, and SQL completion semantics.
 | [profiles.lua](../lua/dbridge/profiles.lua) | Profile RPC wrappers and interactive name/adapter/JSON prompts |
 | [explorer.lua](../lua/dbridge/explorer.lua) | NuiTree, Profile nodes, schema browsing, Session bindings and active target selection |
 | [editor.lua](../lua/dbridge/editor.lua) | SQL buffer and whole-buffer/visual-selection execution input |
+| [statements.lua](../lua/dbridge/statements.lua) | Byte-based statement boundaries for cursor execution |
 | [results.lua](../lua/dbridge/results.lua) | Ordered results, warning display, NULL rendering, local pagination |
 | [cmp.lua](../lua/dbridge/cmp.lua) | DSP-backed nvim-cmp source and cursor offsets |
 | [cmp_format.lua](../lua/dbridge/cmp_format.lua) | Optional dbridge-specific menu kinds/icons and label |
@@ -55,26 +56,49 @@ to `dbridge/connect`; the client stores the returned Session ID by tree node ID.
 
 The tree nests Profile, database, schema, table, and column nodes. Connecting
 fetches database/schema/table listings; column details load on first table
-expansion. Table nodes keep both a three-part metadata name and a bare table name.
+expansion. Table nodes keep a legacy three-part metadata name, literal structured identity,
+a display name, and the SQL identifier returned by the server. First expansion
+shares one metadata request with query activation; failed loading remains retryable.
+Late replies for removed/replaced nodes or torn-down panels are ignored.
 
 Active Session selection first considers the explorer cursor when that panel is
 focused, then the last-interacted connected Profile, then a connected root node.
-Execution and completion share this selector. The current results statusline
-shows pages and warnings, not a dedicated active-Session indicator.
+Execution, completion, and the query-editor winbar share one target descriptor
+containing the Profile name, live Session adapter, and Session ID. The adapter is
+captured at connect time rather than inferred from subsequently edited Profile
+configuration. The winbar updates on explorer interaction, focus/cursor changes,
+metadata rendering, and known server running-state changes; it explicitly shows
+no active Session when no live target is available. A known server stop clears
+bindings and metadata because Session IDs belong to that process. Profile text
+is escaped for statusline rendering. The results statusline retains pages and warnings.
 
 Deleting a Profile through the explorer also requests disconnection of its tracked
 Session. Editing a Profile upserts the entered name; it does not remove an old
-name when renamed. Schema refresh currently clears the server cache, removes the
-displayed children, drops the local Session binding, and connects again. That path
-does not disconnect the old Session or preserve the binding. These are current
-limits, not desired guarantees; see the [referenced backlog](backlog/README.md#server-hosted-records).
+name when renamed. Schema refresh clears the server cache and obtains database,
+schema, and table listings using the existing Session. It gathers a replacement
+subtree off-screen and swaps children only after all listings succeed. Errors
+retain the previous metadata and Session binding. A generation and captured tree,
+node, Session identity, and panel validity reject superseded refreshes and replies
+for removed Profiles or torn-down panels. Duplicate pending connect actions are
+coalesced; a connect reply for a removed Profile or disposed panel is disconnected. Refresh does not create or disconnect a Session,
+so its temporary tables and in-memory data survive.
 
 ## Query input, results, and completion
 
-Normal execution sends the query buffer; the editor also has a visual-selection
-path. There is no statement-under-cursor extractor. Entering a table generates
-`SELECT * FROM <bare-table-name> LIMIT 100`; dialect-aware quoting and qualification
-are still deferred.
+`<leader>r` sends the query buffer or a visual selection. `<leader>s` and
+`:DbridgeExecuteStatement` select one statement at the query-editor cursor and
+use the same execution/Session flow. The lexical scanner preserves semicolons
+inside quotes, comments, and SQLite trigger bodies and reports empty or
+unterminated input without a request. Live target Adapter metadata distinguishes
+SQLite bracket identifiers/non-nested comments from DuckDB arrays/nested comments.
+It does not validate SQL or implement arbitrary procedural dialect grammars.
+
+Entering a table waits for getTableSchema and generates
+`SELECT * FROM <server-sql-identifier> LIMIT 100` using that node's captured Session.
+The server owns quoting and qualification; the client sends literal table identity
+alongside legacy fqn and never infers dialect rules. A successful response missing
+the identifier field permits legacy bare-name generation for older servers.
+Explicit null identifiers and metadata errors prevent execution and notify the user.
 
 The results panel renders positional rows against the server's ordered column
 list. Columns are keyed internally by index, preserving duplicate names. JSON
@@ -89,10 +113,11 @@ newlines plus the cursor's zero-based UTF-8 byte offset. Per-source sequence
 numbers suppress stale replies. DSP labels, insert text, and sort keys are mapped
 to nvim-cmp items; the optional formatter exposes table/column/keyword vocabulary.
 The source registers `.` as a trigger character, respecting nvim-cmp's automatic
-completion configuration. Qualified column items include a UTF-8 text edit
-covering the post-dot identifier and its suffix after the cursor. Acceptance
-therefore preserves the alias and replaces an existing column name completely,
-including with nvim-cmp's default Insert confirmation behavior.
+completion configuration. All column items include a UTF-8 text edit covering
+the current identifier and its suffix after the cursor. Acceptance preserves any
+alias and replaces an existing qualified or unqualified column name completely,
+including with nvim-cmp's default Insert confirmation behavior. Table and keyword
+items retain their existing insertion mapping.
 Completion quality and dialect support remain server responsibilities.
 
 ## UI and process lifecycle
@@ -105,7 +130,9 @@ does not stop the child process; `:DbridgeClose` and Neovim exit call `client.st
 Startup checks the server executable and reports missing commands or failed
 `jobstart` calls. JSON-RPC errors reach the request callback; stderr and unexpected
 nonzero exits are surfaced as notifications. There is no automatic restart or
-query cancellation. Do not infer those guarantees from the lifecycle helpers.
+query cancellation. UI-only teardown/rebuild Session ownership remains a
+[deferred lifecycle issue](backlog/002-ui-rebuild-session-lifetime.md). Do not infer
+stronger guarantees from the lifecycle helpers.
 
 ## Verification and remaining limits
 

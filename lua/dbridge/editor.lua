@@ -15,8 +15,34 @@ function M.get_sql()
   return table.concat(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), "\n")
 end
 
+function M.get_statement()
+  if not M.panel or vim.api.nvim_get_current_buf() ~= M.panel.bufnr then
+    return nil, "Place the cursor in the dbridge query editor first"
+  end
+  local lines = vim.api.nvim_buf_get_lines(M.panel.bufnr, 0, -1, false)
+  local row, col = unpack(vim.api.nvim_win_get_cursor(0))
+  local offset = col
+  for line = 1, row - 1 do offset = offset + #lines[line] + 1 end
+  local explorer = require("dbridge.explorer")
+  local target = explorer.get_active_target and explorer.get_active_target()
+  return require("dbridge.statements").at(table.concat(lines, "\n"), offset, target and target.adapter)
+end
+
 function M.set_sql(sql)
   vim.api.nvim_buf_set_lines(M.panel.bufnr, 0, -1, false, vim.split(sql, "\n"))
+end
+
+function M.update_target(target)
+  if not M.panel or not M.panel.winid or not vim.api.nvim_win_is_valid(M.panel.winid) then return end
+  local text = " dbridge | No active Session "
+  if target then
+    local function literal(value)
+      return tostring(value):gsub("[%c]", " "):gsub("%%", "%%%%")
+    end
+    text = " dbridge | " .. literal(target.name) .. " (" .. literal(target.adapter)
+      .. ") | Session " .. literal(target.session_id) .. " "
+  end
+  vim.api.nvim_set_option_value("winbar", text, { win = M.panel.winid })
 end
 
 function M.init()

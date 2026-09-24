@@ -24,16 +24,15 @@ function source:get_position_encoding_kind()
   return "utf-8"
 end
 
--- Capture the whole post-dot identifier, including text after the cursor.
+-- Capture the whole column identifier, including text after the cursor.
 -- A plain textEdit replaces this range even with cmp's default Insert behavior.
-local function qualified_column_range(sql, position)
+local function current_column_range()
   local row, col = unpack(vim.api.nvim_win_get_cursor(0))
-  -- SQL permits whitespace (including a newline) between dot and identifier.
-  local start = vim.fn.match(sql:sub(1, position), [[\.\_s*\zs\k*$]])
-  if start == -1 then return nil end
-  local suffix = vim.fn.matchstr(sql:sub(position + 1), [[^\k*]])
+  local line = vim.api.nvim_get_current_line()
+  local start = vim.fn.match(line:sub(1, col), [[\k*$]])
+  local suffix = vim.fn.matchstr(line:sub(col + 1), [[^\k*]])
   return {
-    start = { line = row - 1, character = col - (position - start) },
+    start = { line = row - 1, character = start },
     ["end"] = { line = row - 1, character = col + #suffix },
   }
 end
@@ -64,7 +63,7 @@ function source:complete(params, callback)
   -- what the server needs to resolve columns.
   local sql = table.concat(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), "\n")
   local position = cursor_byte_offset(bufnr)
-  local column_range = qualified_column_range(sql, position)
+  local column_range = current_column_range()
 
   -- Only the newest request may answer; fast typing otherwise lets a stale
   -- reply overwrite a fresher one.
@@ -95,7 +94,7 @@ function source:complete(params, callback)
           -- render "table"/"column" rather than "Class"/"Field"
           dbridge_kind = item.kind,
         }
-        if item.kind == "column" and column_range then
+        if item.kind == "column" then
           completion_item.textEdit = {
             range = column_range,
             newText = item.insert_text,

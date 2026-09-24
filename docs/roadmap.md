@@ -9,16 +9,16 @@ them.
 
 ## Documentation and workflow foundation
 
-Status: implemented and verified; OpenSpec archive pending.
+Status: implemented, verified, and archived.
 
-The [documentation migration](../openspec/changes/adopt-openspec-documentation/proposal.md)
+The [documentation migration](../openspec/changes/archive/2026-09-23-adopt-openspec-documentation/proposal.md)
 establishes separate current architecture, future direction, a file-per-item
 backlog, and agent maintenance rules using the same document roles as the server.
 Completion requires verified navigation, preserved deferred intent, project-specific
 OpenSpec guidance, and a recorded verification result. It does not implement the
-product outcomes below. Commit/push and final archive remain separate steps.
+product outcomes below. Publication and later product changes remain separate work.
 
-See the [verification record](../openspec/changes/adopt-openspec-documentation/tasks.md#verification-record)
+See the [verification record](../openspec/changes/archive/2026-09-23-adopt-openspec-documentation/tasks.md#verification-record)
 for checks completed and checks not run.
 
 ## Proposed sequence
@@ -40,8 +40,16 @@ and [database hierarchy](https://github.com/realEbi/dbridge/blob/dbridge-2.0/doc
 
 Ownership: Profile/Session interactions are client work. Identifier and hierarchy
 contracts may require linked server/client changes; do not invent dialect behavior
-in the UI without agreeing on that boundary. The current bare-name SELECT and
-refresh-by-reconnection paths are not completion of this outcome.
+in the UI without agreeing on that boundary.
+
+Implemented in [preserve-and-display-active-session](../openspec/changes/archive/2026-09-23-preserve-and-display-active-session/):
+refresh preserves the live Session and its data, and the query editor displays the
+same Profile/Session target used by execution and completion. Table activation
+consumes server-generated quoted identifiers through
+[use-server-table-identifiers](../openspec/changes/archive/2026-09-23-use-server-table-identifiers/),
+with real SQLite/DuckDB coverage of duplicate scopes and unusual names. Profile
+rename and database hierarchy remain separate dependencies; these slices do not
+complete the whole outcome.
 
 Completion evidence: real-server client checks for correct query targeting,
 rename/failure cases, Session preservation on refresh, and unambiguous browsing;
@@ -59,9 +67,15 @@ Both are client-owned and need not wait for a new server execution model. Resolv
 storage, Profile rename/delete interactions, and SQL selection semantics in their
 own changes; historical implementation suggestions are not settled designs.
 
+Statement-under-cursor execution is implemented by
+[`execute-statement-under-cursor`](../openspec/changes/archive/2026-09-23-execute-statement-under-cursor/),
+with explicit lexical boundaries, a new command/mapping, and real SQLite/DuckDB
+execution checks. Whole-buffer and visual execution remain available. Saved-query
+management and its Profile naming/storage decisions remain open.
+
 Completion evidence: isolated file-management checks and editor cases covering
 the agreed statement/selection behavior, including strings, comments, and delimiters.
-Neither feature is restored by migrating its documentation.
+The documentation migration alone did not restore either feature.
 
 ### 3. Integrate server-supported long-running and large-result workflows
 
@@ -94,6 +108,13 @@ companion server's alias-resolution fix, linked from server backlog
 [015](https://github.com/realEbi/dbridge/blob/dbridge-2.0/docs/backlog/015-alias-completion.md).
 CTE/derived and correlated source inference remain server work; this fix does not
 complete the broader roadmap outcomes above.
+
+Unqualified SELECT completion now has the same whole-identifier replacement in
+[`replace-unqualified-column-completions`](../openspec/changes/archive/2026-09-23-replace-unqualified-column-completions/).
+Real nvim-cmp checks cover comma targets, prefixes, Unicode and midword acceptance,
+and the bare-SELECT keyword menu against the companion server's
+[SELECT target change](https://github.com/realEbi/dbridge/tree/dbridge-2.0/openspec/changes/archive/2026-09-23-complete-unqualified-select-targets).
+Source inference remains server-owned; this does not finish the broader outcomes.
 
 When selecting work, link its OpenSpec change from the owning backlog record.
 Update the current architecture and user docs as behavior ships; update roadmap

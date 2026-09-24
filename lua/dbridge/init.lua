@@ -20,8 +20,8 @@ local _cfg = {
   server_cmd = { "dbridge" },
 }
 
-local function run_sql(sql)
-  local session_id = explorer.get_active_session()
+local function run_sql(sql, session_id)
+  session_id = session_id or explorer.get_active_session()
   if not session_id then
     vim.notify("[dbridge] no active connection", vim.log.levels.WARN)
     return
@@ -42,6 +42,15 @@ local function execute_sql()
   run_sql(editor.get_sql())
 end
 
+local function execute_statement()
+  local sql, reason = editor.get_statement()
+  if not sql then
+    vim.notify("[dbridge] " .. reason, vim.log.levels.INFO)
+    return
+  end
+  run_sql(sql)
+end
+
 local function init_layout()
   _layout = Layout(
     { position = "top", size = "100%", relative = "editor" },
@@ -58,16 +67,11 @@ end
 local function init_keymaps()
   local o = { noremap = true, nowait = true }
   explorer.panel:map("n", "<CR>", function()
-    local n = explorer.handle_enter()
-    if n and n._type == "table" then
-      -- The bare table name, not n._fqn. Qualification is dialect-specific:
-      -- sqlite has no catalog level, so the tree's database.schema.table would
-      -- be "main.main.users" and fail to parse. Both adapters resolve a bare
-      -- name against the default search path.
-      local sql = "SELECT * FROM " .. n._table .. " LIMIT 100"
+    explorer.handle_enter(function(n)
+      local sql = "SELECT * FROM " .. n._sql_identifier .. " LIMIT 100"
       editor.set_sql(sql)
-      run_sql(sql)
-    end
+      run_sql(sql, n._session_id)
+    end)
   end, o)
   explorer.panel:map("n", "a", explorer.handle_add_profile, o)
   explorer.panel:map("n", "e", explorer.handle_edit_profile, o)
@@ -75,6 +79,7 @@ local function init_keymaps()
   explorer.panel:map("n", "R", explorer.handle_refresh, o)
   editor.panel:map("n", "<leader>r", execute_sql, o)
   editor.panel:map("v", "<leader>r", execute_sql, o)
+  editor.panel:map("n", "<leader>s", execute_statement, o)
   results.panel:map("n", "n", results.next_page, o)
   results.panel:map("n", "p", results.prev_page, o)
 end
@@ -97,6 +102,13 @@ local function open()
 
   explorer.init()
   editor.init()
+  explorer.on_active_changed = editor.update_target
+  client.on_state_changed = explorer.server_state_changed
+  local target_group = vim.api.nvim_create_augroup("DbridgeActiveTarget", { clear = true })
+  vim.api.nvim_create_autocmd({ "CursorMoved", "WinEnter", "BufEnter" }, {
+    group = target_group,
+    callback = function() explorer.update_target() end,
+  })
   results.init()
   init_layout()
   init_keymaps()
@@ -116,6 +128,7 @@ local function open()
   _layout:mount()
   vim.api.nvim_set_current_win(explorer.panel.winid)
   vim.g.dbridge_loaded = 1
+  explorer.update_target()
   _hidden = false
   pcall(vim.api.nvim_buf_delete, tmp, { force = true })
 end
@@ -126,6 +139,9 @@ end
 
 M.open = open
 M.close = teardown
+
+vim.api.nvim_create_user_command("DbridgeExecuteStatement", execute_statement,
+  { desc = "Execute the SQL statement at the query-editor cursor" })
 
 vim.api.nvim_create_user_command("Dbridge", function()
   if vim.g.dbridge_loaded ~= 1 or not _layout then

@@ -75,6 +75,7 @@ T["carries insert_text and sort_key through"] = function()
   local r = complete_at({ "SELECT * FROM " }, 1, 14)
   eq(r.first.insertText, r.first.label)
   eq(type(r.first.sortText), "string")
+  eq(r.first.textEdit, nil)
 end
 
 T["cmp_format renders dbridge kinds, not LSP ones"] = function()
