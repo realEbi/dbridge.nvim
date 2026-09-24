@@ -80,6 +80,11 @@ explicitly select that implementation with `DBRIDGE_SERVER_CMD`.
 The explicit Scope Path client requires its linked server migration; the old fixed
 scope/fqn protocol is unsupported. `tests/test_scope_browsing.lua` verifies the
 shared attached-catalog/namespace flow against the selected real server.
+The transport introspection test requires a server with
+[`extract-table-key-constraints`](https://github.com/realEbi/dbridge/tree/dbridge-2.0/openspec/changes/archive/2026-09-24-extract-table-key-constraints),
+which replaces the old primary-key field. Select that paired server when running
+`tests/test_transport.lua` or the full suite; client runtime modules do not consume
+the key fields.
 
 For prose-only changes, check links/anchors, examples, retired references, and
 whitespace, including **new untracked files**. Do not add runtime tests just to

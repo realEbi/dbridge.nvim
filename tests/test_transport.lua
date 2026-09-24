@@ -58,7 +58,8 @@ T["introspection"]["listTables and getTableSchema"] = function()
 
   local schema = H.request(child, "dbridge/getTableSchema", { session_id = sid, path = { "main" }, name = "users" })
   eq(vim.tbl_map(function(c) return c.name end, schema.columns), { "id", "name" })
-  eq(schema.primary_keys, { "id" })
+  eq(schema.primary_key, { name = vim.NIL, columns = { "id" } })
+  eq(schema.primary_keys, nil)
   eq(schema.columns[1].data_type, "INTEGER")
 end
 
