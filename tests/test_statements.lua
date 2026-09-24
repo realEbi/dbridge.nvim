@@ -89,7 +89,7 @@ for _, adapter in ipairs({ "sqlite", "duckdb" }) do
         _statement_sid = sid
         _E.stub_active_session(sid)
         require('dbridge.explorer').get_active_target = function()
-          return { name = 'statements', adapter = adapter, session_id = sid }
+          return { name = 'statements', adapter = adapter, dialect = adapter, session_id = sid, path = _E.sessions[sid].default_path }
         end
         local results = require('dbridge.results')
         local render = results.render

@@ -73,7 +73,7 @@ end
 
 T["carries insert_text and sort_key through"] = function()
   local r = complete_at({ "SELECT * FROM " }, 1, 14)
-  eq(r.first.insertText, r.first.label)
+  eq(r.first.insertText, '"main"."users"')
   eq(type(r.first.sortText), "string")
   eq(r.first.textEdit, nil)
 end
@@ -97,7 +97,7 @@ T["cmp_format leaves an entry without a dbridge kind alone"] = function()
 end
 
 T["returns nothing when there is no active session"] = function()
-  child.lua("require('dbridge.explorer').get_active_session = function() return nil end")
+  child.lua("_E.stub_active_session(nil)")
   local r = complete_at({ "SELECT * FROM " }, 1, 14)
   eq(r.labels, {})
   child.lua("_E.stub_active_session(...)", { sid })

@@ -82,10 +82,19 @@ behavior and the shared DSP contract. Use the server's glossary for shared terms
 do not duplicate its complete protocol specification in client specs.
 
 For cross-repository work, name each owner, link the corresponding changes, define
-compatibility, and verify the shared flow. A reference to a server backlog item
-does not authorize modifying that repository. Future concurrency, cancellation,
-or streaming requires agreed server contracts; asynchronous Lua requests alone
-do not supply them.
+compatibility, and verify the shared flow with the owning repository's tooling.
+
+A session may be rooted above both repositories and may edit either one. Editing a
+repository requires its own linked OpenSpec change in its own `openspec/`, and that
+repository's AGENTS.md governs every file under it — reading order, guardrails,
+verification commands, and coverage gates. OpenSpec resolves by nearest root, so run
+its commands from inside the repository they target, and keep each repository's
+planning artifacts, backlog records, and commits in that repository. Naming a server
+backlog item still does not by itself authorize modifying that repository; the linked
+change does.
+
+Future concurrency, cancellation, or streaming requires agreed server contracts;
+asynchronous Lua requests alone do not supply them.
 
 ## Engineering guardrails
 

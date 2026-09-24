@@ -6,7 +6,7 @@ for implemented behavior and the [roadmap](docs/roadmap.md) for proposed directi
 ## Shared vocabulary
 
 Use the server's [domain glossary](https://github.com/realEbi/dbridge/blob/dbridge-2.0/CONTEXT.md)
-for **Profile**, **Session**, **Adapter**, **Transport**, **Core Engine**, and **DSP**.
+for **Profile**, **Session**, **Adapter**, **Transport**, **Core Engine**, **DSP**, **Scope Path**, and **Scope Level**.
 Those definitions are shared; this repository does not establish a second protocol
 or database model.
 
@@ -22,9 +22,10 @@ Profile node, not a different domain object.
 | Term | Meaning |
 |---|---|
 | Neovim Client | This Lua plugin, which owns editor interaction and presentation and spawns the server |
-| Explorer | The tree panel for Profiles and database/schema/table/column browsing |
-| Active Session | The live Session selected as the target for query execution and completion; selection does not change its database/schema scope |
-| Query buffer | The SQL editor panel's buffer; execution input can be its contents or a visual selection |
+| Explorer | The tree panel for Profiles, server-declared scope containers, tables, and columns |
+| Active Session | The live Session selected as the target for query execution and completion; the Client carries a separate Scope Path on metadata and completion requests |
+| Query buffer | A SQL buffer retaining its per-Session completion Scope Path; the query editor's execution input can be its contents or a visual selection |
+| Selected scope | The Client-owned Scope Path used for metadata and completion; initialized from the Session declaration and updated through explorer selection |
 | Results panel | The presentation of the most recently rendered query response, including warnings |
 | Results page | A client-side slice of rows already received, not a database cursor or another server fetch |
 | Completion source | The optional nvim-cmp integration that translates DSP completion items into editor suggestions |

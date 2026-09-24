@@ -28,7 +28,10 @@ boundary and [roadmap](docs/roadmap.md) for proposed future work.
 **Requires nvim >= 0.10.**
 
 Install the [dbridge](https://github.com/realebi/dbridge) server so its `dbridge`
-console script is on your `PATH`:
+console script is on your `PATH`. This client requires the explicit Scope Path
+contract introduced by the server's `adopt-explicit-scope-paths` change; update
+both repositories together. Older-server protocol fallback is not supported:
+
 
 ```bash
 pip install dbridge
@@ -87,17 +90,17 @@ Explorer tree:
 
 - `a` — add a profile
 - `e` — edit the profile under the cursor
-- `<CR>` — open a profile / database / schema / table
+- `<CR>` — open a Profile / scope container / table
 - `DD` — delete the profile under the cursor
 - `R` — refresh schema for the node under the cursor, preserving its live Session
 - `l` / `h` — expand and collapse a node
 
 Entering a table loads its metadata, then generates a sample SELECT using the
 server's quoted identifier. This preserves the selected SQLite namespace or DuckDB
-catalog/schema, including names with spaces, quotes, or dots. Metadata failures
-show an error without running a guessed query. Update both server and client for
-this behavior; a successful older-server response without an identifier retains
-legacy bare-name queries and their ambiguity/unusual-name limits.
+catalog/schema, including names with spaces, quotes, or dots. Missing identifiers
+or metadata failures show an error without running a guessed query. The explorer
+uses the server-declared hierarchy: SQLite namespaces contain tables directly;
+DuckDB catalogs contain schemas. Engine-internal containers are marked in the tree.
 
 Editor and results panels:
 
@@ -109,19 +112,25 @@ Semicolons inside strings, quoted identifiers, comments, and SQLite trigger
 bodies do not split the selected statement. A cursor on the terminating semicolon
 selects the preceding statement; whitespace/comments after it belong to the next
 one. Empty or unterminated input is reported without executing SQL. SQLite and
-DuckDB lexical differences use the active Session's Adapter; arbitrary stored
+DuckDB lexical differences use the active Session's reported SQL dialect; arbitrary stored
 procedure syntax from other databases is not supported.
 - `n` / `p` — next / previous page of results
 
-The query editor's top bar shows the active Profile, adapter, and Session ID used
-for execution and completion. While the explorer is focused, its connected
+The query editor's top bar shows the active Profile, adapter, Session ID, and
+selected Scope Path. While the explorer is focused, its connected
 Profile under the cursor is the target; in the editor, the last interacted
 connected Profile is used, falling back to another connected Profile. With no
-live target, the bar says `No active Session`.
+live target, the bar says `No active Session`. Selecting a scope container or table
+sets the query editor's completion scope; the initial scope comes from the server.
+Selecting a partial path uses the remaining default components until a complete
+scope is selected. SQL execution is unchanged: write qualified SQL when targeting
+an attached scope, or accept the qualified identifier from completion.
 
 Schema refresh keeps the same Session, including in-memory data and temporary
 tables. Metadata is replaced after a successful refresh; if refresh or listing
-fails, the previous tree remains visible and the error is reported.
+fails, the previous tree remains visible and the error is reported. Refresh after
+`ATTACH` or `DETACH` to update the hierarchy. A surviving scope stays selected;
+a removed scope resets to the server's refreshed default.
 
 ## Profiles
 
@@ -186,7 +195,9 @@ cmp.setup {
 
 Completion is cursor-aware: the whole buffer is sent along with the cursor's
 byte offset, so a `SELECT` on one line resolves columns from a `FROM` on
-another.
+another. Table suggestions are limited to the query buffer's selected scope.
+Their menu labels stay bare while acceptance inserts the server's executable,
+fully qualified identifier. Other SQL buffers retain their own per-Session scopes.
 
 With automatic completion enabled and an active Session, typing `.` after a
 table alias opens column suggestions. For example, in

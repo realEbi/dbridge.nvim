@@ -53,30 +53,29 @@ T["introspection"] = MiniTest.new_set()
 
 T["introspection"]["listTables and getTableSchema"] = function()
   child.lua("_E.exec(...)", { sid, "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL)" })
-  local tables = H.request(child, "dbridge/listTables", { session_id = sid })
-  eq(vim.tbl_contains(tables, "users"), true)
+  local tables = H.request(child, "dbridge/listTables", { session_id = sid, path = { "main" } })
+  eq(vim.tbl_contains(vim.tbl_map(function(t) return t.name end, tables), "users"), true)
 
-  local schema = H.request(child, "dbridge/getTableSchema", { session_id = sid, fqn = "users" })
+  local schema = H.request(child, "dbridge/getTableSchema", { session_id = sid, path = { "main" }, name = "users" })
   eq(vim.tbl_map(function(c) return c.name end, schema.columns), { "id", "name" })
   eq(schema.primary_keys, { "id" })
   eq(schema.columns[1].data_type, "INTEGER")
 end
 
-T["introspection"]["listDatabases and listSchemas"] = function()
-  eq(H.request(child, "dbridge/listDatabases", { session_id = sid }), { "main" })
-  eq(H.request(child, "dbridge/listSchemas", { session_id = sid }), { "main" })
+T["introspection"]["listDatabases declares SQLite namespaces"] = function()
+  eq(H.request(child, "dbridge/listDatabases", { session_id = sid }), { { name = "main", internal = false } })
 end
 
 T["introspection"]["refreshSchema picks up a new table"] = function()
-  H.request(child, "dbridge/listTables", { session_id = sid }) -- warm the cache
+  H.request(child, "dbridge/listTables", { session_id = sid, path = { "main" } }) -- warm the cache
   child.lua("_E.exec(...)", { sid, "CREATE TABLE added_later (id INTEGER)" })
   eq(H.request(child, "dbridge/refreshSchema", { session_id = sid }).ok, true)
-  local tables = H.request(child, "dbridge/listTables", { session_id = sid })
-  eq(vim.tbl_contains(tables, "added_later"), true)
+  local tables = H.request(child, "dbridge/listTables", { session_id = sid, path = { "main" } })
+  eq(vim.tbl_contains(vim.tbl_map(function(t) return t.name end, tables), "added_later"), true)
 end
 
 T["introspection"]["getERD returns the placeholder without erroring"] = function()
-  local r, err = H.request(child, "dbridge/getERD", { session_id = sid })
+  local r, err = H.request(child, "dbridge/getERD", { session_id = sid, path = { "main" } })
   eq(err, nil)
   eq(r.status, "not_implemented")
 end

@@ -54,7 +54,8 @@ always stop child processes through the test hooks.
 
 | Test file | Existing coverage |
 |---|---|
-| [test_table_queries.lua](../tests/test_table_queries.lua) | Real Enter mapping against SQLite/DuckDB, literal names and duplicate scopes, metadata failures/retry, old-server compatibility, captured Session and late replies |
+| [test_table_queries.lua](../tests/test_table_queries.lua) | Real Enter mapping against SQLite/DuckDB, literal names and duplicate scopes, metadata failures/retry, missing-identifier rejection, captured Session and late replies |
+| [test_scope_browsing.lua](../tests/test_scope_browsing.lua) | Declared SQLite/DuckDB tiers, internal markers, literal attached paths, scoped completion and real nvim-cmp acceptance/execution, independent buffers, refresh attach/detach selection |
 | [test_transport.lua](../tests/test_transport.lua) | Large/chunked responses, empty params, introspection, DSP errors, disconnect |
 | [test_profiles.lua](../tests/test_profiles.lua) | Profile CRUD, saved file contents, connect by name and inline configuration |
 | [test_completion.lua](../tests/test_completion.lua) | Cursor-aware completion, keyword fallback, item mapping, menu formatting |
@@ -70,7 +71,10 @@ for changes spanning transport, lifecycle, or shared UI state. Add real-server
 integration coverage where the boundary matters instead of replacing requests
 with stubs. The harness currently establishes most query fixtures with SQLite;
 do not claim all-adapter, reconnect, or edge-case coverage from a test's name alone.
-Coordinate checks in both repositories when changing shared DSP behavior.
+Coordinate checks in both repositories when changing shared DSP behavior. The
+explicit Scope Path client requires its linked server migration; the old fixed
+scope/fqn protocol is unsupported. `tests/test_scope_browsing.lua` verifies the
+shared attached-catalog/namespace flow against the selected real server.
 
 For prose-only changes, check links/anchors, examples, retired references, and
 whitespace, including **new untracked files**. Do not add runtime tests just to

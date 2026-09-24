@@ -78,13 +78,14 @@ for _, adapter in ipairs({ "sqlite", "duckdb" }) do
     eq(child.lua_get("_Q.query_result(...).ready", { "SELECT * FROM " .. identifier .. " LIMIT 100", "retry worked" }), true)
   end
 
-  A["successful old metadata retains the legacy query"] = function()
+  A["missing identifier prevents generated execution"] = function()
     prepare({ "CREATE TABLE products (value TEXT)", "INSERT INTO products VALUES ('legacy works')" })
     child.lua_get("_Q.focus_table(...)", { "products", database, "main" })
     child.lua("_Q.hold_metadata('old')")
     child.type_keys("<CR>")
     child.lua("_Q.release()")
-    eq(child.lua_get("_Q.query_result(...).ready", { "SELECT * FROM products LIMIT 100", "legacy works" }), true)
+    eq(child.lua_get("_E.wait_for(function() return #_E.notifications > 0 end)"), true)
+    eq(child.lua_get("#_Q.queries"), 0)
   end
 
   A["explicit null identifier prevents a bare-name fallback"] = function()

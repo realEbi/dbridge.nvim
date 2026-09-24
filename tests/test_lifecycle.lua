@@ -43,7 +43,7 @@ T[":Dbridge rebuilds a working layout after a close"] = function()
   -- and it still serves queries
   local sid = child.lua_get("_E.connect_memory()")
   child.lua("_E.exec(...)", { sid, "CREATE TABLE after_reopen (id INTEGER)" })
-  eq(H.request(child, "dbridge/listTables", { session_id = sid }), { "after_reopen" })
+  eq(H.request(child, "dbridge/listTables", { session_id = sid, path = { "main" } }), { { name = "after_reopen", sql_identifier = '"main"."after_reopen"' } })
 end
 
 T["saved profiles populate the explorer on open"] = function()

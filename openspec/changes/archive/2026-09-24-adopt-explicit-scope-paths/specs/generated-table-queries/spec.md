@@ -1,10 +1,4 @@
-# generated-table-queries Specification
-
-## Purpose
-
-Generate sample queries for the selected explorer table using server-owned identifiers and its captured Session.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Execute the selected table using server metadata
 
@@ -21,6 +15,14 @@ Entering an explorer table SHALL generate its sample SELECT from the server-prov
 #### Scenario: Asynchronous activation
 - **WHEN** table metadata is loading and the user activates the same table again
 - **THEN** the client does not issue duplicate metadata requests or sample queries
+
+## REMOVED Requirements
+
+### Requirement: Fail visibly and preserve older-server compatibility
+**Reason**: The explicit-scope migration deliberately removes the legacy protocol fallback.
+**Migration**: Upgrade client and server together; metadata requests use literal paths and identifiers are required.
+
+## ADDED Requirements
 
 ### Requirement: Fail visibly when metadata lacks an identifier
 
