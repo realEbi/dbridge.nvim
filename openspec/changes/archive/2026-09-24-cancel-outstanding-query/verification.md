@@ -14,6 +14,9 @@ Checks passed:
 - `FILE=tests/test_cancellation.lua make test_file` with the server override:
   3 real-server cases, covering SQLite and DuckDB cancellation through the command,
   Session reuse, displayed-result preservation, and completion during DuckDB work.
+  Repeated successfully against the paired server topic worktree before PR
+  publication, explicitly selecting its virtual-environment executable through
+  `DBRIDGE_SERVER_CMD`.
 - `make test` with the same server override: all 176 cases passed, zero notes.
 - `openspec validate --all --strict --no-interactive`: change and all 6 capability
   specs valid after synchronizing the 4 verified query-cancellation requirements.
