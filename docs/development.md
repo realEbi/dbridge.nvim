@@ -54,6 +54,8 @@ always stop child processes through the test hooks.
 
 | Test file | Existing coverage |
 |---|---|
+| [test_cancel_control.lua](../tests/test_cancel_control.lua) | Deterministic request IDs, notification framing, callback correlation, latest-query targeting, cancellation feedback, and process cleanup |
+| [test_cancellation.lua](../tests/test_cancellation.lua) | Real SQLite/DuckDB cancellation through the command, Session reuse, result preservation, and completion overtaking a DuckDB query |
 | [test_table_queries.lua](../tests/test_table_queries.lua) | Real Enter mapping against SQLite/DuckDB, literal names and duplicate scopes, metadata failures/retry, missing-identifier rejection, captured Session and late replies |
 | [test_scope_browsing.lua](../tests/test_scope_browsing.lua) | Declared SQLite/DuckDB tiers, internal markers, literal attached paths, scoped completion and real nvim-cmp acceptance/execution, independent buffers, refresh attach/detach selection |
 | [test_transport.lua](../tests/test_transport.lua) | Large/chunked responses, empty params, introspection, DSP errors, disconnect |
@@ -72,7 +74,9 @@ integration coverage where the boundary matters instead of replacing requests
 with stubs. The harness currently establishes most query fixtures with SQLite;
 do not claim all-adapter, reconnect, or edge-case coverage from a test's name alone.
 Coordinate checks in both repositories when changing shared DSP behavior. The
-explicit Scope Path client requires its linked server migration; the old fixed
+query-cancellation checks require the linked server async orchestration change;
+explicitly select that implementation with `DBRIDGE_SERVER_CMD`.
+The explicit Scope Path client requires its linked server migration; the old fixed
 scope/fqn protocol is unsupported. `tests/test_scope_browsing.lua` verifies the
 shared attached-catalog/namespace flow against the selected real server.
 

@@ -3,7 +3,7 @@ schema: spec-driven
 context: |
   dbridge.nvim is a Lua Neovim Client using nui.nvim and optional nvim-cmp.
   It spawns the dbridge Python server over stdio JSON-RPC with LSP-style framing.
-  Client requests are asynchronous; the current server executes synchronously.
+  Client requests are asynchronous; supporting server contracts own concurrency and cancellation.
   Read AGENTS.md for ownership/workflow, CONTEXT.md for client and shared terms,
   docs/architecture.md for implemented behavior, and docs/development.md for checks.
   Future outcomes belong in docs/roadmap.md and deferred records in docs/backlog/.

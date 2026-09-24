@@ -97,15 +97,18 @@ Existing records: [cancellation](https://github.com/realEbi/dbridge/blob/dbridge
 and [large results](https://github.com/realEbi/dbridge/blob/dbridge-2.0/docs/backlog/013-large-results.md).
 
 Ownership: the server owns execution, interruption, and fetching contracts; this
-client owns their controls and presentation. Its current asynchronous requests
-and local result pages do not provide server concurrency, cancellation, or
-streaming. Agree on compatibility, ordering, error handling, and cleanup before
-implementing client controls against new methods.
+client owns their controls and presentation. Cancellation is implemented by
+[cancel-outstanding-query](../openspec/changes/archive/2026-09-24-cancel-outstanding-query/), paired
+with the server's
+[async orchestration change](https://github.com/realEbi/dbridge/tree/dbridge-2.0/openspec/changes/archive/2026-09-24-adopt-async-orchestration).
+The client targets the latest outstanding query, reports confirmed cancellation
+informationally, preserves the Session, and continues completion while DuckDB
+execution runs. Progress notifications, streaming, and bounded result retrieval
+remain open; local result pages do not fetch more rows.
 
 Completion evidence: linked changes and real end-to-end tests for the selected
-contract, including compatibility with the supported server behavior. Asyncio,
-worker isolation, cursors, or streaming are design choices to resolve, not promises
-made by this roadmap.
+contract, including compatibility with the supported server behavior. The server
+owns the adopted execution model; cursors and streaming remain future decisions.
 
 ## Maintaining progress
 

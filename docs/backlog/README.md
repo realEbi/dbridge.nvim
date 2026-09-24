@@ -70,3 +70,8 @@ server item 007 is provenance, not another local implementation checklist.
 | [010 - Server notifications](https://github.com/realEbi/dbridge/blob/dbridge-2.0/docs/backlog/010-server-notifications.md) | dbridge and affected clients |
 | [012 - Concurrent execution](https://github.com/realEbi/dbridge/blob/dbridge-2.0/docs/backlog/012-concurrent-execution.md) | dbridge; client compatibility must be checked |
 | [013 - Bounded large results](https://github.com/realEbi/dbridge/blob/dbridge-2.0/docs/backlog/013-large-results.md) | dbridge and affected clients |
+
+The client control for server-hosted item 009 is tracked in
+[cancel-outstanding-query](../../openspec/changes/archive/2026-09-24-cancel-outstanding-query/), linked
+to the server's `adopt-async-orchestration` change. The server-hosted record remains
+the owner of the shared item's status.

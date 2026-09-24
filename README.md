@@ -7,9 +7,10 @@ The plugin spawns the dbridge server as a child process and talks to it over
 **stdio JSON-RPC 2.0** with LSP-style `Content-Length` framing. There is no HTTP
 server to start and no port to configure.
 
-The Lua client sends requests asynchronously; the current Python server handles
-them sequentially. See [current architecture](docs/architecture.md) for that
-boundary and [roadmap](docs/roadmap.md) for proposed future work.
+The Lua client sends requests asynchronously. With a supporting dbridge server,
+queries can be cancelled and completion remains available during a DuckDB query.
+See [current architecture](docs/architecture.md) for the client/server boundary
+and [roadmap](docs/roadmap.md) for future work.
 
 ![Screenshot](assets/mysql-employees.png)
 
@@ -106,6 +107,7 @@ Editor and results panels:
 
 - `<leader>r` — run the buffer, or the visual selection, as a query
 - `<leader>s` — run only the statement at the cursor (normal mode)
+- `n` / `p` — next / previous page of results
 
 `:DbridgeExecuteStatement` runs the same statement action from the query editor.
 Semicolons inside strings, quoted identifiers, comments, and SQLite trigger
@@ -114,7 +116,21 @@ selects the preceding statement; whitespace/comments after it belong to the next
 one. Empty or unterminated input is reported without executing SQL. SQLite and
 DuckDB lexical differences use the active Session's reported SQL dialect; arbitrary stored
 procedure syntax from other databases is not supported.
-- `n` / `p` — next / previous page of results
+
+`:DbridgeCancel` requests cancellation of the latest still-outstanding query run
+from the editor or a table. Changing the active Session does not change which
+request it targets. If the newest query already finished, the command targets the
+newest remaining query; if none is pending, it reports that without sending anything.
+Confirmed cancellation appears as an informational message and keeps the displayed
+results. The Session remains available for another query.
+
+Cancellation needs the server's async orchestration support. Sending a cancel does
+not guarantee interruption: a query that finishes first, or cannot be interrupted,
+still shows its normal result. Earlier statements in a cancelled execution may
+already have taken effect. Older servers ignore the cancellation notification.
+With the supporting server, completion on DuckDB can finish while a query runs;
+SQLite metadata cache misses wait behind the query, while cached completion remains
+available. See the [server execution contract](https://github.com/realEbi/dbridge/blob/dbridge-2.0/docs/architecture.md).
 
 The query editor's top bar shows the active Profile, adapter, Session ID, and
 selected Scope Path. While the explorer is focused, its connected

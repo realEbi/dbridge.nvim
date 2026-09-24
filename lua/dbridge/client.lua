@@ -20,6 +20,17 @@ local function send(msg)
   vim.fn.chansend(_job_id, frame)
 end
 
+local function object_params(params)
+  -- Lua encodes an empty table as [], but DSP params are always an object.
+  if params == nil or vim.tbl_isempty(params) then return vim.empty_dict() end
+  return params
+end
+
+local function clear_pending()
+  _pending = {}
+  _buf = ""
+end
+
 local function dispatch_response(msg)
   local id = msg.id
   if not id then return end
@@ -33,7 +44,8 @@ local function dispatch_response(msg)
   end
 end
 
-local function on_stdout(_, data, _)
+local function on_stdout(job_id, data, _)
+  if _job_id ~= job_id then return end
   _buf = _buf .. table.concat(data, "\n")
   while true do
     -- find header boundary
@@ -73,8 +85,11 @@ function M.start(cmd)
       local msg = table.concat(data, "")
       if msg ~= "" then vim.notify("[dbridge] " .. msg, vim.log.levels.WARN) end
     end,
-    on_exit = function(_, code, _)
+    on_exit = function(job_id, code, _)
+      -- A stopped process may exit after a replacement has already started.
+      if _job_id ~= job_id then return end
       _job_id = nil
+      clear_pending()
       state_changed()
       if code ~= 0 then
         vim.notify("[dbridge] server exited with code " .. code, vim.log.levels.ERROR)
@@ -97,28 +112,40 @@ end
 
 function M.stop()
   if _job_id then
-    vim.fn.jobstop(_job_id)
+    local job_id = _job_id
     _job_id = nil
+    clear_pending()
+    vim.fn.jobstop(job_id)
     state_changed()
   end
 end
 
--- Async request: cb(result, err)
+-- Async request: cb(result, err). Returns its id, or nil when not running.
 function M.request(method, params, cb)
   if not _job_id then
     cb(nil, { message = "server not running" })
     return
   end
-  -- Lua cannot tell an empty list from an empty map, and json_encode turns `{}`
-  -- into `[]`. DSP params are always an object, and the server rejects an array
-  -- outright, so methods taking no params (listProfiles) must send `{}`.
-  if params == nil or vim.tbl_isempty(params) then
-    params = vim.empty_dict()
-  end
   local id = _next_id
   _next_id = _next_id + 1
   _pending[id] = cb
-  send({ jsonrpc = "2.0", id = id, method = method, params = params })
+  send({ jsonrpc = "2.0", id = id, method = method, params = object_params(params) })
+  return id
+end
+
+function M.notify(method, params)
+  if not _job_id then return false end
+  send({ jsonrpc = "2.0", method = method, params = object_params(params) })
+  return true
+end
+
+function M.is_pending(id)
+  return _pending[id] ~= nil
+end
+
+function M.cancel(id)
+  if not M.is_pending(id) then return false end
+  return M.notify("$/cancelRequest", { id = id })
 end
 
 -- Sync wrapper (blocks via vim.wait)

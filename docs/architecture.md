@@ -11,18 +11,26 @@ client instance using `jobstart` and communicates over stdin/stdout with JSON-RP
 2.0 and LSP-style `Content-Length` framing. It does not start an HTTP listener or
 configure a port. DSP is the dbridge method contract, not the full LSP API.
 
-`client.request(method, params, cb)` returns without waiting for a response. A
+`client.request(method, params, cb)` returns its request ID without waiting for a
+response, or nil if the server is stopped. A
 request-ID map routes later replies to callbacks; the receive buffer reassembles
 arbitrarily split stdout chunks and can consume multiple complete frames. Empty
 params are encoded as an object, and frame lengths count UTF-8 bytes. UI operations
 that require the main loop are scheduled with `vim.schedule`.
 
 `client.request_sync` is a blocking wrapper using `vim.wait`, used by the test
-helpers. Its existence does not make normal UI requests synchronous. Conversely,
-the [current Python server](https://github.com/realEbi/dbridge/blob/dbridge-2.0/docs/architecture.md)
-handles requests sequentially with blocking adapters. A long query delays later
-requests to that process, including completion; multiple pending client requests
-are not concurrent database execution.
+helpers. Its existence does not make normal UI requests synchronous. The
+[current Python server](https://github.com/realEbi/dbridge/blob/dbridge-2.0/docs/architecture.md)
+owns execution and metadata concurrency. Its async orchestration keeps intake
+responsive, and the existing ID map handles replies that overtake an earlier query.
+The client does not serialize completion behind pending executions.
+
+`client.notify` sends a framed notification without allocating an ID or callback.
+`client.cancel(id)` requests cancellation only while that ID remains pending and
+keeps its callback until the actual reply. Both helpers return whether they sent
+anything. Transport callbacks and partial input are cleared at process stop;
+stdout and exit callbacks from an older process cannot change a replacement
+process's transport state.
 
 The client owns presentation and editor state. The server owns Profile persistence,
 live Adapters, query execution, schema metadata, and SQL completion semantics.
@@ -32,7 +40,7 @@ live Adapters, query execution, schema metadata, and SQL completion semantics.
 | Module | Implemented responsibility |
 |---|---|
 | [init.lua](../lua/dbridge/init.lua) | Configuration, three-panel layout, keymaps, commands, query dispatch, lifecycle |
-| [client.lua](../lua/dbridge/client.lua) | Child process, framed transport, pending callbacks, async requests and sync wrapper |
+| [client.lua](../lua/dbridge/client.lua) | Child process, framed transport, pending callbacks, request IDs, cancellation notifications, sync wrapper |
 | [profiles.lua](../lua/dbridge/profiles.lua) | Profile RPC wrappers and interactive name/adapter/JSON prompts |
 | [explorer.lua](../lua/dbridge/explorer.lua) | NuiTree, Profile nodes, schema browsing, Session bindings and active target selection |
 | [editor.lua](../lua/dbridge/editor.lua) | SQL buffer and whole-buffer/visual-selection execution input |
@@ -138,6 +146,16 @@ dialect support remain server responsibilities.
 
 ## UI and process lifecycle
 
+`init.lua` tracks outstanding requests from its shared editor/table execution
+flow. `:DbridgeCancel` selects the latest remaining ID, independent of changes to
+the active Session. A reply removes that ID before presentation is scheduled;
+process stop retires its requests, which are pruned from the set. A scheduled stop
+event cannot remove a newly submitted replacement-process query. The command
+announces a cancellation request, and
+only `QUERY_CANCELLED` becomes an informational "query cancelled" message that
+retains the previous results. Normal results still render if cancellation loses
+the race or is unsupported; other execution errors remain errors.
+
 `:Dbridge` builds a layout in a new tab, then toggles hide/show while it exists.
 Closing a panel schedules one guarded teardown rather than rebuilding inside its
 unload handler. A later `:Dbridge` can build a fresh layout. UI teardown alone
@@ -145,8 +163,8 @@ does not stop the child process; `:DbridgeClose` and Neovim exit call `client.st
 
 Startup checks the server executable and reports missing commands or failed
 `jobstart` calls. JSON-RPC errors reach the request callback; stderr and unexpected
-nonzero exits are surfaced as notifications. There is no automatic restart or
-query cancellation. UI-only teardown/rebuild Session ownership remains a
+nonzero exits are surfaced as notifications. There is no automatic restart.
+UI-only teardown/rebuild Session ownership remains a
 [deferred lifecycle issue](backlog/002-ui-rebuild-session-lifetime.md). Do not infer
 stronger guarantees from the lifecycle helpers.
 
