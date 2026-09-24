@@ -2,8 +2,8 @@
 
 dbridge.nvim is a Lua Neovim Client with an explorer, SQL editor, and results
 panel. It spawns the dbridge Python server and uses stdio JSON-RPC 2.0 with
-LSP-style framing. The client is asynchronous; the current server executes
-requests synchronously. There is no HTTP listener or port.
+LSP-style framing. The client is asynchronous; the supporting server owns concurrent
+execution and cancellation. There is no HTTP listener or port.
 
 ## Before starting work
 
@@ -129,15 +129,16 @@ planning artifacts, backlog records, and commits in that repository. Naming a se
 backlog item still does not by itself authorize modifying that repository; the linked
 change does.
 
-Future concurrency, cancellation, or streaming requires agreed server contracts;
-asynchronous Lua requests alone do not supply them.
+Concurrency and cancellation follow the linked server contracts; streaming remains
+future work. Asynchronous Lua requests alone do not supply server guarantees.
 
 ## Engineering guardrails
 
 - Manage Profiles through RPCs; never read/write the server's TOML from Lua.
   A Profile is configuration, a Session is live server state identified by ID.
-- Route server calls through `client.request`; schedule UI operations that need
-  the main loop. Keep the blocking `request_sync` wrapper in test helpers.
+- Route server requests/notifications through `client.request`/`client.notify`;
+  schedule UI operations that need the main loop. Keep the blocking `request_sync`
+  wrapper in test helpers.
 - Preserve UTF-8 byte lengths/offsets, object-shaped empty params, and frame
   reassembly across arbitrary stdout chunks. Do not assume one callback is a frame.
 - Keep server executable checks and actionable startup failures. UI teardown must

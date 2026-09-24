@@ -8,6 +8,7 @@ local M = {}
 
 local _layout = nil
 local _hidden = false
+local _executions = {} -- outstanding UI query request ids
 -- Guards the teardown path. Unmounting the layout unloads the panel buffers,
 -- which fires their own BufUnload handlers; without this they would re-enter
 -- teardown (and, previously, open()) and never terminate.
@@ -27,15 +28,41 @@ local function run_sql(sql, session_id)
     return
   end
   if not sql or sql == "" then return end
-  client.request("dbridge/execute", { session_id = session_id, sql = sql }, function(result, err)
+  local request_id
+  request_id = client.request("dbridge/execute", { session_id = session_id, sql = sql }, function(result, err)
+    if request_id then _executions[request_id] = nil end
     vim.schedule(function()
       if err then
-        vim.notify("[dbridge] execute error: " .. err.message, vim.log.levels.ERROR)
+        if err.code == -32004 then
+          vim.notify("[dbridge] query cancelled", vim.log.levels.INFO)
+        else
+          vim.notify("[dbridge] execute error: " .. err.message, vim.log.levels.ERROR)
+        end
         return
       end
       results.render(result)
     end)
   end)
+  if request_id then _executions[request_id] = true end
+end
+
+local function forget_finished_executions()
+  for id in pairs(_executions) do
+    if not client.is_pending(id) then _executions[id] = nil end
+  end
+end
+
+local function cancel_query()
+  forget_finished_executions()
+  local latest
+  for id in pairs(_executions) do
+    if not latest or id > latest then latest = id end
+  end
+  if latest and client.cancel(latest) then
+    vim.notify("[dbridge] cancellation requested", vim.log.levels.INFO)
+  else
+    vim.notify("[dbridge] no outstanding query", vim.log.levels.INFO)
+  end
 end
 
 local function execute_sql()
@@ -103,7 +130,12 @@ local function open()
   explorer.init()
   editor.init()
   explorer.on_active_changed = editor.update_target
-  client.on_state_changed = explorer.server_state_changed
+  client.on_state_changed = function(running)
+    -- A queued stop event may arrive after restart and a new query. Only remove
+    -- ids the transport has retired, leaving replacement-process queries intact.
+    if not running then forget_finished_executions() end
+    explorer.server_state_changed(running)
+  end
   local target_group = vim.api.nvim_create_augroup("DbridgeActiveTarget", { clear = true })
   vim.api.nvim_create_autocmd({ "CursorMoved", "WinEnter", "BufEnter" }, {
     group = target_group,
@@ -142,6 +174,9 @@ M.close = teardown
 
 vim.api.nvim_create_user_command("DbridgeExecuteStatement", execute_statement,
   { desc = "Execute the SQL statement at the query-editor cursor" })
+
+vim.api.nvim_create_user_command("DbridgeCancel", cancel_query,
+  { desc = "Request cancellation of the latest outstanding query" })
 
 vim.api.nvim_create_user_command("Dbridge", function()
   if vim.g.dbridge_loaded ~= 1 or not _layout then

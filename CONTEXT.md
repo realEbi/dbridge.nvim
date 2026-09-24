@@ -33,9 +33,10 @@ Profile node, not a different domain object.
 
 ## Boundaries
 
-Asynchronous client requests and synchronous server execution are compatible
-descriptions of different layers. A responsive editor or multiple live Sessions
-does not imply concurrent query execution in one server process.
+Asynchronous client requests describe the editor's behavior. The server owns
+execution concurrency and cancellation semantics; client responsiveness alone does
+not establish those guarantees. A cancellation request expresses user intent;
+confirmed cancellation is the server's reply, not the act of sending that request.
 
 Keep editor behavior and presentation contracts here; database semantics and shared
 DSP contracts belong to the server. For work spanning both repositories, follow
