@@ -54,19 +54,26 @@ Profile CRUD goes through `dbridge/listProfiles`, `dbridge/saveProfile`, and
 for display/editing. Opening a Profile currently sends its inline adapter/config
 to `dbridge/connect`; the client stores the returned Session ID by tree node ID.
 
-The tree nests Profile, database, schema, table, and column nodes. Connecting
-fetches database/schema/table listings; column details load on first table
-expansion. Table nodes keep a legacy three-part metadata name, literal structured identity,
-a display name, and the SQL identifier returned by the server. First expansion
-shares one metadata request with query activation; failed loading remains retryable.
+Connect returns the Session's declared levels, default Scope Path, and SQL dialect.
+The tree nests Profile, those declared containers, table, and column nodes: SQLite
+has one namespace tier; DuckDB has catalog and schema tiers. Container nodes retain
+literal paths and engine-internal flags, displayed with their level labels. Table
+listings supply literal names and executable SQL identifiers; column details load
+on first table expansion. Metadata requests send the table node's path and name.
+First expansion shares one metadata request with query activation; failed loading
+remains retryable.
 Late replies for removed/replaced nodes or torn-down panels are ignored.
 
 Active Session selection first considers the explorer cursor when that panel is
 focused, then the last-interacted connected Profile, then a connected root node.
 Execution, completion, and the query-editor winbar share one target descriptor
-containing the Profile name, live Session adapter, and Session ID. The adapter is
-captured at connect time rather than inferred from subsequently edited Profile
-configuration. The winbar updates on explorer interaction, focus/cursor changes,
+containing the Profile name, live Session adapter, SQL dialect, Session ID, and
+selected Scope Path. Session metadata is captured at connect time rather than
+inferred from subsequently edited Profile configuration. Each live Profile binding
+tracks its active path; a selected container's missing suffix uses the declaration's
+default components. The query editor records its selected path per Session in a
+buffer-local binding; other SQL buffers retain independent per-Session paths.
+The winbar includes the active scope and updates on explorer interaction, focus/cursor changes,
 metadata rendering, and known server running-state changes; it explicitly shows
 no active Session when no live target is available. A known server stop clears
 bindings and metadata because Session IDs belong to that process. Profile text
@@ -74,10 +81,15 @@ is escaped for statusline rendering. The results statusline retains pages and wa
 
 Deleting a Profile through the explorer also requests disconnection of its tracked
 Session. Editing a Profile upserts the entered name; it does not remove an old
-name when renamed. Schema refresh clears the server cache and obtains database,
-schema, and table listings using the existing Session. It gathers a replacement
-subtree off-screen and swaps children only after all listings succeed. Errors
-retain the previous metadata and Session binding. A generation and captured tree,
+name when renamed. Schema refresh clears the server cache and obtains declared
+container and table listings using the existing Session. It rereads the
+hierarchy declaration, gathers a replacement subtree off-screen, and swaps children
+and declaration only after all listings succeed. Errors retain the previous
+metadata, declaration, and Session binding. A still-listed selected path survives;
+a removed path resets to the refreshed default, including paths held by other SQL
+buffers when next used. Refresh preserves focus on a surviving table or scope;
+a removed scope focuses the Profile, so cursor events cannot select an unrelated
+container after replacement. A generation and captured tree,
 node, Session identity, and panel validity reject superseded refreshes and replies
 for removed Profiles or torn-down panels. Duplicate pending connect actions are
 coalesced; a connect reply for a removed Profile or disposed panel is disconnected. Refresh does not create or disconnect a Session,
@@ -89,16 +101,18 @@ so its temporary tables and in-memory data survive.
 `:DbridgeExecuteStatement` select one statement at the query-editor cursor and
 use the same execution/Session flow. The lexical scanner preserves semicolons
 inside quotes, comments, and SQLite trigger bodies and reports empty or
-unterminated input without a request. Live target Adapter metadata distinguishes
-SQLite bracket identifiers/non-nested comments from DuckDB arrays/nested comments.
+unterminated input without a request. The live Session's reported SQL dialect
+distinguishes SQLite bracket identifiers/non-nested comments from DuckDB
+arrays/nested comments.
 It does not validate SQL or implement arbitrary procedural dialect grammars.
 
 Entering a table waits for getTableSchema and generates
 `SELECT * FROM <server-sql-identifier> LIMIT 100` using that node's captured Session.
-The server owns quoting and qualification; the client sends literal table identity
-alongside legacy fqn and never infers dialect rules. A successful response missing
-the identifier field permits legacy bare-name generation for older servers.
-Explicit null identifiers and metadata errors prevent execution and notify the user.
+The server owns quoting and qualification; the client sends the captured literal
+Scope Path and table name. Missing, empty, or null identifiers and metadata errors
+prevent execution and notify the user. Client and server must use the explicit-scope
+contract together; legacy fqn, fixed database/schema fields, and older-server
+identifier fallback are removed.
 
 The results panel renders positional rows against the server's ordered column
 list. Columns are keyed internally by index, preserving duplicate names. JSON
@@ -108,8 +122,9 @@ server truncation warnings appear as notifications and in the statusline. An
 empty response renders `(no results)`.
 
 The completion source activates in SQL buffers while the server is running and
-returns no items without an active Session. It sends the whole buffer joined by
-newlines plus the cursor's zero-based UTF-8 byte offset. Per-source sequence
+returns no items without an active Session. It sends the query buffer's selected
+Scope Path, the whole buffer joined by newlines, and the cursor's zero-based UTF-8
+byte offset. Per-source sequence
 numbers suppress stale replies. DSP labels, insert text, and sort keys are mapped
 to nvim-cmp items; the optional formatter exposes table/column/keyword vocabulary.
 The source registers `.` as a trigger character, respecting nvim-cmp's automatic
@@ -117,8 +132,9 @@ completion configuration. All column items include a UTF-8 text edit covering
 the current identifier and its suffix after the cursor. Acceptance preserves any
 alias and replaces an existing qualified or unqualified column name completely,
 including with nvim-cmp's default Insert confirmation behavior. Table and keyword
-items retain their existing insertion mapping.
-Completion quality and dialect support remain server responsibilities.
+items retain server insertion text; table labels are bare and their insertion
+is the server's fully qualified executable identifier. Completion quality and
+dialect support remain server responsibilities.
 
 ## UI and process lifecycle
 

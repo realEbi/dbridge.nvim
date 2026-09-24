@@ -58,7 +58,7 @@ T["connect by profile name"] = function()
   eq(type(r.session_id), "string")
 
   child.lua("_E.exec(...)", { r.session_id, "CREATE TABLE viaprofile (id INTEGER)" })
-  eq(H.request(child, "dbridge/listTables", { session_id = r.session_id }), { "viaprofile" })
+  eq(H.request(child, "dbridge/listTables", { session_id = r.session_id, path = { "main" } }), { { name = "viaprofile", sql_identifier = '"main"."viaprofile"' } })
 end
 
 T["connect by inline adapter and config"] = function()

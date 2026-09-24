@@ -34,6 +34,10 @@ end
 
 function E.request(method, params, timeout)
   local r, err = client.request_sync(method, params, timeout or 20000)
+  if method == "dbridge/connect" and r then
+    E.sessions = E.sessions or {}
+    E.sessions[r.session_id] = r
+  end
   -- nil is not representable across RPC inside a table; normalize to false
   return { result = r, err = err or false }
 end
@@ -144,7 +148,13 @@ function E.format_foreign()
 end
 
 function E.stub_active_session(sid)
-  require("dbridge.explorer").get_active_session = function() return sid end
+  local explorer = require("dbridge.explorer")
+  explorer.get_active_session = function() return sid end
+  explorer.get_active_target = function()
+    if not sid then return nil end
+    local declaration = assert(E.sessions[sid])
+    return { session_id = sid, path = declaration.default_path, dialect = declaration.dialect }
+  end
   return true
 end
 

@@ -25,7 +25,7 @@ function M.get_statement()
   for line = 1, row - 1 do offset = offset + #lines[line] + 1 end
   local explorer = require("dbridge.explorer")
   local target = explorer.get_active_target and explorer.get_active_target()
-  return require("dbridge.statements").at(table.concat(lines, "\n"), offset, target and target.adapter)
+  return require("dbridge.statements").at(table.concat(lines, "\n"), offset, target and target.dialect)
 end
 
 function M.set_sql(sql)
@@ -34,13 +34,14 @@ end
 
 function M.update_target(target)
   if not M.panel or not M.panel.winid or not vim.api.nvim_win_is_valid(M.panel.winid) then return end
+  require("dbridge.explorer").set_query_target(M.panel.bufnr, target)
   local text = " dbridge | No active Session "
   if target then
     local function literal(value)
       return tostring(value):gsub("[%c]", " "):gsub("%%", "%%%%")
     end
     text = " dbridge | " .. literal(target.name) .. " (" .. literal(target.adapter)
-      .. ") | Session " .. literal(target.session_id) .. " "
+      .. ") | Session " .. literal(target.session_id) .. " | Scope " .. literal(table.concat(target.path or {}, " / ")) .. " "
   end
   vim.api.nvim_set_option_value("winbar", text, { win = M.panel.winid })
 end

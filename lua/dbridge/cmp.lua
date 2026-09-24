@@ -51,8 +51,8 @@ local function cursor_byte_offset(bufnr)
 end
 
 function source:complete(params, callback)
-  local session_id = explorer.get_active_session()
-  if not session_id then
+  local target = explorer.get_query_target(vim.api.nvim_get_current_buf())
+  if not target then
     callback({ items = {} })
     return
   end
@@ -70,7 +70,7 @@ function source:complete(params, callback)
   self._seq = (self._seq or 0) + 1
   local seq = self._seq
 
-  client.request("dbridge/complete", { session_id = session_id, sql = sql, position = position },
+  client.request("dbridge/complete", { session_id = target.session_id, path = target.path, sql = sql, position = position },
     function(result, _)
       if seq ~= self._seq then return end
       if not result then

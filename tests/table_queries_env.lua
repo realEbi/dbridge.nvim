@@ -38,7 +38,7 @@ end
 function E.find_table(name, database, schema)
   for _, n in ipairs(walk(explorer.tree:get_nodes())) do
     if n._type == "table" and n._table == name
-      and n._table_ref.database == database and n._table_ref.schema == schema then return n end
+      and vim.deep_equal(n._scope_path, n._scope_path[2] and { database, schema } or { database }) then return n end
   end
 end
 

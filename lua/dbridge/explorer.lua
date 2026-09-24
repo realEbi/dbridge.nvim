@@ -1,4 +1,4 @@
--- DB explorer panel: NuiTree with CONNECTION→DATABASE→SCHEMA→TABLE→COLUMN
+-- DB explorer panel: Profile → declared Scope Levels → table → column
 local NuiTree = require("nui.tree")
 local NuiLine = require("nui.line")
 local Split = require("nui.split")
@@ -44,7 +44,7 @@ local function load_table(n, on_ready)
   local tree = M.tree
   n._loading = true
   client.request("dbridge/getTableSchema", {
-    session_id = n._session_id, fqn = n._fqn, table = n._table_ref,
+    session_id = n._session_id, path = n._scope_path, name = n._table,
   }, function(result, err)
     vim.schedule(function()
       if M.tree ~= tree or tree:get_node(n:get_id()) ~= n
@@ -54,10 +54,7 @@ local function load_table(n, on_ready)
         vim.notify("[dbridge] table metadata: " .. (err and err.message or "empty response"), vim.log.levels.ERROR)
         return
       end
-      -- A missing field identifies an older server. Explicit null/empty values
-      -- from an updated server must never turn into a guessed bare-table query.
       local identifier = result.sql_identifier
-      if identifier == nil then identifier = n._table end
       if type(identifier) ~= "string" or identifier == "" then
         vim.notify("[dbridge] table metadata has no executable identifier; refresh the schema", vim.log.levels.ERROR)
         return
@@ -66,7 +63,7 @@ local function load_table(n, on_ready)
       n._loaded = true
       for _, col in ipairs(result.columns or {}) do
         local detail = col.data_type .. (col.nullable and "" or " NOT NULL")
-        tree:add_node(node(" " .. col.name, "column", { detail = detail }), n:get_id())
+        tree:add_node(node(" " .. col.name, "column", { detail = detail, _scope_path = vim.deepcopy(n._scope_path) }), n:get_id())
       end
       n:expand()
       render()
@@ -88,9 +85,27 @@ local function schema_load(n, session_id)
   end
 end
 
-local function build_schema_tree(n, session_id, current)
+local function build_schema_tree(n, session_id, current, declaration)
   local tree = M.tree
-  local databases, pending, failed = {}, 1, false
+  local containers, paths, pending, failed = {}, {}, 1, false
+  local levels = declaration.levels
+  local function to_nodes(entries, depth)
+    local nodes = {}
+    for _, entry in ipairs(entries) do
+      if depth > #levels then
+        nodes[#nodes + 1] = node(" " .. entry.name, "table", {
+          _session_id = session_id, _scope_path = vim.deepcopy(entry.path),
+          _table = entry.name, _sql_identifier = entry.sql_identifier, _loaded = false,
+        })
+      else
+        nodes[#nodes + 1] = node(" " .. entry.name, "scope", {
+          _scope_path = vim.deepcopy(entry.path), _internal = entry.internal,
+          detail = levels[depth].label .. (entry.internal and " (internal)" or ""),
+        }, to_nodes(entry.children, depth + 1))
+      end
+    end
+    return nodes
+  end
   local function finish(err, method)
     if not current() then return end
     if err and not failed then
@@ -101,55 +116,75 @@ local function build_schema_tree(n, session_id, current)
     if pending ~= 0 or failed then return end
     vim.schedule(function()
       if not current() then return end
-      for _, child_id in ipairs(vim.deepcopy(n:get_child_ids())) do tree:remove_node(child_id) end
-      for _, db in ipairs(databases) do
-        local schemas = {}
-        for _, sc in ipairs(db.schemas) do
-          local tables = {}
-          for _, tbl in ipairs(sc.tables) do
-            tables[#tables + 1] = node(" " .. tbl, "table", {
-              _session_id = session_id,
-              _fqn = db.name .. "." .. sc.name .. "." .. tbl,
-              _table = tbl,
-              _table_ref = { name = tbl, database = db.name, schema = sc.name },
-              _loaded = false,
-            })
-          end
-          schemas[#schemas + 1] = node("󰢶 " .. sc.name, "schema", nil, tables)
+      -- Keep the focused identity across replacement. Otherwise collapsing the
+      -- new tree clamps a table's old row onto an unrelated scope, and the next
+      -- CursorMoved event silently selects that scope for completion.
+      local selected
+      if M.panel.winid == vim.api.nvim_get_current_win() then
+        selected = tree:get_node()
+        if connection_root(selected) ~= n then selected = nil end
+        if selected and selected._type == "column" then
+          selected = tree:get_node(selected:get_parent_id())
         end
-        tree:add_node(node(" " .. db.name, "database", nil, schemas), n:get_id())
       end
+      for _, child_id in ipairs(vim.deepcopy(n:get_child_ids())) do tree:remove_node(child_id) end
+      for _, child in ipairs(to_nodes(containers, 1)) do tree:add_node(child, n:get_id()) end
+      n._levels, n._default_path = vim.deepcopy(levels), vim.deepcopy(declaration.default_path)
+      n._available_paths = paths
+      if not paths[vim.json.encode(n._active_path)] then n._active_path = vim.deepcopy(n._default_path) end
       n:expand()
-      render()
+      local focus, scope = n, nil
+      local function find_selected(parent)
+        for _, child in ipairs(tree:get_nodes(parent:get_id())) do
+          if vim.deep_equal(child._scope_path, selected._scope_path) then
+            if child._type == "scope" then scope = child end
+            if child._type == selected._type and child._table == selected._table then focus = child end
+          end
+          find_selected(child)
+        end
+      end
+      if selected then
+        find_selected(n)
+        if focus == n and scope then focus = scope end
+        local ancestor = focus
+        while ancestor:get_parent_id() do
+          ancestor = tree:get_node(ancestor:get_parent_id())
+          ancestor:expand()
+        end
+      end
+      tree:render()
+      if selected then
+        local _, row = tree:get_node(focus:get_id())
+        vim.api.nvim_win_set_cursor(M.panel.winid, { row, 0 })
+      end
+      M.update_target()
     end)
   end
-  client.request("dbridge/listDatabases", { session_id = session_id }, function(dbs, err)
-    if not current() then return end
-    if not err then
-      for i, db in ipairs(dbs or {}) do
-        local entry = { name = db, schemas = {} }
-        databases[i] = entry
-        pending = pending + 1
-        client.request("dbridge/listSchemas", { session_id = session_id, database = db }, function(schemas, e2)
-          if not current() then return end
-          if not e2 then
-            for j, sc in ipairs(schemas or {}) do
-              local schema = { name = sc, tables = {} }
-              entry.schemas[j] = schema
-              pending = pending + 1
-              client.request("dbridge/listTables", { session_id = session_id, database = db, schema = sc }, function(tables, e3)
-                if not current() then return end
-                schema.tables = tables or {}
-                finish(e3, "listTables")
-              end)
-            end
+  local function list_children(entries, path, depth)
+    local method = depth == 1 and "listDatabases" or (depth <= #levels and "listSchemas" or "listTables")
+    local params = { session_id = session_id }
+    if depth > 1 then params.path = path end
+    client.request("dbridge/" .. method, params, function(result, err)
+      if not current() then return end
+      if not err then
+        for i, item in ipairs(result or {}) do
+          local child_path = vim.deepcopy(path)
+          if depth <= #levels then child_path[#child_path + 1] = item.name end
+          entries[i] = {
+            name = item.name, internal = item.internal, path = child_path,
+            sql_identifier = item.sql_identifier, children = {},
+          }
+          if depth <= #levels then
+            if depth == #levels then paths[vim.json.encode(child_path)] = true end
+            pending = pending + 1
+            list_children(entries[i].children, child_path, depth + 1)
           end
-          finish(e2, "listSchemas")
-        end)
+        end
       end
-    end
-    finish(err, "listDatabases")
-  end)
+      finish(err, method)
+    end)
+  end
+  list_children(containers, {}, 1)
 end
 
 local function connect_profile(n)
@@ -177,7 +212,10 @@ local function connect_profile(n)
     _active_id = n:get_id()
     n._session_id = sid
     n._session_adapter = adapter
-    build_schema_tree(n, sid, schema_load(n, sid))
+    n._session_dialect = result.dialect
+    n._levels, n._default_path = vim.deepcopy(result.levels), vim.deepcopy(result.default_path)
+    n._active_path = vim.deepcopy(result.default_path)
+    build_schema_tree(n, sid, schema_load(n, sid), result)
     n:expand(); vim.schedule(render)
   end)
 end
@@ -208,7 +246,7 @@ function M.handle_enter(on_table_ready)
       if on_table_ready then on_table_ready(n) end
     end
     return n
-  elseif t == "database" or t == "schema" then
+  elseif t == "scope" then
     if n:is_expanded() then n:collapse() else n:expand() end
     render()
   end
@@ -222,25 +260,54 @@ end
 --- one profile was connected.
 function M.get_active_target()
   if not M.tree or not client.is_running() then return nil end
-  local function target(n)
+  local function target(n, selected)
     if n and _sessions[n:get_id()] then
-      return { name = n._name, adapter = n._session_adapter, session_id = _sessions[n:get_id()] }
+      if selected and selected._scope_path then
+        n._active_path = vim.deepcopy(selected._scope_path)
+        for i = #n._active_path + 1, #n._levels do n._active_path[i] = n._default_path[i] end
+      end
+      return {
+        name = n._name, adapter = n._session_adapter, dialect = n._session_dialect,
+        session_id = _sessions[n:get_id()], path = vim.deepcopy(n._active_path),
+      }
     end
   end
   -- The explorer cursor selects a target only while its panel has focus;
   -- the editor uses the last interaction instead of an unrelated tree row.
   if M.panel and M.panel.winid == vim.api.nvim_get_current_win() then
-    local selected = target(connection_root(M.tree:get_node()))
+    local selected = target(connection_root(M.tree:get_node()), M.tree:get_node())
     if selected then return selected end
   end
   if _active_id then
-    local selected = target(M.tree:get_node(_active_id))
+    local selected = target((M.tree:get_node(_active_id)))
     if selected then return selected end
   end
   for _, n in ipairs(M.tree:get_nodes()) do
     local selected = target(n)
     if selected then return selected end
   end
+end
+
+-- Scope belongs to each SQL buffer, keyed by live Session identity. The editor
+-- updates its binding on explorer interaction; independent SQL buffers retain theirs.
+function M.set_query_target(bufnr, target)
+  local scopes = vim.b[bufnr].dbridge_scopes or {}
+  if target then scopes[target.session_id] = vim.deepcopy(target.path) end
+  vim.b[bufnr].dbridge_scopes = scopes
+end
+
+function M.get_query_target(bufnr)
+  local target = M.get_active_target()
+  if not target then return nil end
+  local scopes = vim.b[bufnr].dbridge_scopes or {}
+  local path = scopes[target.session_id]
+  for _, root in ipairs(M.tree and M.tree:get_nodes() or {}) do
+    if root._session_id == target.session_id and path and root._available_paths
+      and not root._available_paths[vim.json.encode(path)] then path = root._default_path end
+  end
+  target.path = vim.deepcopy(path or target.path)
+  M.set_query_target(bufnr, target)
+  return target
 end
 
 function M.get_active_session()
@@ -255,7 +322,8 @@ function M.server_state_changed(running)
     _sessions, _active_id = {}, nil
     if M.tree then
       for _, n in ipairs(M.tree:get_nodes()) do
-        n._session_id, n._session_adapter, n._connecting = nil, nil, nil
+        n._session_id, n._session_adapter, n._session_dialect, n._connecting = nil, nil, nil, nil
+        n._levels, n._default_path, n._active_path, n._available_paths = nil, nil, nil, nil
         n._schema_generation = (n._schema_generation or 0) + 1
         for _, child_id in ipairs(vim.deepcopy(n:get_child_ids())) do M.tree:remove_node(child_id) end
         n:collapse()
@@ -320,10 +388,10 @@ function M.handle_refresh()
   _active_id = n:get_id()
   M.update_target()
   local current = schema_load(n, sid)
-  client.request("dbridge/refreshSchema", { session_id = sid }, function(_, err)
+  client.request("dbridge/refreshSchema", { session_id = sid }, function(result, err)
     if not current() then return end
     if err then vim.notify("[dbridge] refresh failed: " .. err.message, vim.log.levels.ERROR); return end
-    build_schema_tree(n, sid, current)
+    build_schema_tree(n, sid, current, result)
   end)
 end
 

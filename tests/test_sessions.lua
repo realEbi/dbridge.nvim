@@ -94,7 +94,7 @@ end
 for _, method in ipairs({ "refreshSchema", "listDatabases", "listSchemas", "listTables" }) do
   T[method .. " failure retains metadata and target"] = function()
     local r = child.lua_get([[(function(method)
-      local n = _S.connect('memory')
+      local n = _S.connect('memory', method == 'listSchemas' and 'duckdb' or 'sqlite')
       local sid = n._session_id
       _E.exec(sid, 'CREATE TABLE kept (value INTEGER)')
       _S.refresh(n, 'kept')
