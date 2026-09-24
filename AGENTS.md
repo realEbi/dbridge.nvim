@@ -60,8 +60,8 @@ workflow migrations. Small spelling/link corrections may be direct edits.
 - Verify each task before checking it off. Record unrelated findings in the
   owning backlog, not a commit message or another implementation plan.
 - Before completion, update every affected document above. Record checks run,
-  checks not run, and remaining limitations. Request archive after apply is
-  complete; synchronize verified deltas where relevant and update archive links.
+  checks not run, and remaining limitations. Synchronize verified deltas where
+  relevant, archive the completed change, and update archive links before its PR.
   Update roadmap outcomes and remaining dependencies without marking a whole
   milestone done for one finished item.
 
@@ -74,6 +74,39 @@ The [backlog guide](docs/backlog/README.md) owns the template and status convent
 Use stable IDs. Existing server-hosted records retain their current home until an
 explicit transfer updates both repositories. New client-only findings belong here.
 
+## Worktrees and delivery
+
+Every OpenSpec apply runs in a separate topic worktree. Before editing, record the
+original checkout's absolute path, branch, upstream, HEAD, and status including
+staged, unstaged, and untracked files. Preserve that checkout's branch, index,
+files, and commits throughout implementation; existing dirt stays with its owner.
+Keep the baseline plus the topic branch/worktree path and selected PR target in
+the session handoff, not as machine-specific paths committed to project docs.
+
+Fetch the selected PR target (default `origin/dbridge-2.0`) and create the topic
+branch from that remote tip with `--no-track`, not from the original HEAD. Use an
+external `.worktrees/<change>/<repo>` directory, or resume a matching worktree
+after inspecting its branch, history, and status. Transfer only the selected local
+plan and necessary dependent edits; leave their original copies and unrelated
+local history intact. Run edits, OpenSpec, verification, and Git publication
+from the worktree. Follow [the development guide](docs/development.md#worktree-delivery)
+for commands and edge cases.
+
+Requesting apply authorizes staging and committing scoped changes, pushing the
+topic branch, and creating/updating its GitHub PR after verification; no second
+publication prompt is needed. Complete verified synchronization and archive before
+the PR. Merging a PR, tagging, publishing packages, and releasing still require a
+separate user request. Explicit user constraints override these defaults.
+
+After GitHub confirms the PR merged, fetch in the original checkout. Refresh it
+only if its recorded branch, upstream, and HEAD still match, its branch/upstream
+are the PR target, it is clean including untracked files, and there are no local-only
+commits. Use a fast-forward-only pull. Otherwise preserve it and report the
+blocker; do not switch branches, merge, rebase, reset, or stash to force an update.
+Clean up only the confirmed-merged topic worktree when it is clean and its HEAD
+matches the published head of that merged PR, with no later or unpublished work.
+Use non-force removal. Never delete unmerged work.
+
 ## Client/server ownership
 
 This repository owns editor interactions, UI state, and presentation. The
@@ -83,6 +116,9 @@ do not duplicate its complete protocol specification in client specs.
 
 For cross-repository work, name each owner, link the corresponding changes, define
 compatibility, and verify the shared flow with the owning repository's tooling.
+Use paired `.worktrees/<change>/dbridge` and `.worktrees/<change>/dbridge.nvim`
+directories, separate topic branches/commits/PRs, and explicitly select the server
+worktree for client integration checks. Refresh each original checkout separately.
 
 A session may be rooted above both repositories and may edit either one. Editing a
 repository requires its own linked OpenSpec change in its own `openspec/`, and that
@@ -118,5 +154,6 @@ asynchronous Lua requests alone do not supply them.
   commands, server overrides, and platform-isolation limits.
 
 Preserve unrelated user changes and generated tool integrations. Project policy
-belongs in the owning docs/configuration, not generated skills. Staging, committing,
-pushing, tagging, publishing, and releases require user authorization.
+belongs in the owning docs/configuration, not generated skills. Apply requests
+authorize scoped Git commits and PR publication as described above; other
+publication, merges, tags, and releases require separate user authorization.

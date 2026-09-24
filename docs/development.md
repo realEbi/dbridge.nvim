@@ -110,8 +110,8 @@ specs. An initially empty capability inventory is expected; grow specs as verifi
 behavior changes touch an area rather than converting all historical prose.
 
 Generated Codex skills under `.agents/skills/` and Claude skills/commands under
-`.claude/` are shared workflow assets. Include them and `openspec/` when committing
-the migration is authorized; exclude personal settings, caches, and `deps/`.
+`.claude/` are shared workflow assets. Include generated updates only in an
+intentional integration upgrade; exclude personal settings, caches, and `deps/`.
 Refresh integrations with `openspec update` only as an intentional upgrade, review
 the generated diff, and record the version here. See the
 [OpenSpec project](https://github.com/Fission-AI/OpenSpec) for installation.
@@ -150,16 +150,148 @@ For documentation/tooling-only changes with no product requirement changes, set
 only when the schema's conditions apply. Follow the current CLI instructions
 rather than creating placeholder specs to fill a progress counter.
 
+## Worktree delivery
+
+Every apply uses a separate topic worktree. The original checkout stays on its
+current branch with its index, files, and commits preserved. An apply request also
+authorizes scoped commits, pushing the topic branch, and creating/updating its
+GitHub PR after verification. Explicit user constraints take precedence. Merge,
+tags, package publication, and releases need a separate request.
+
+### Prepare the worktree
+
+Before edits, record the original absolute path, branch, upstream, HEAD, and
+status including staged, unstaged, and untracked files in the change's existing
+session handoff, together with the selected PR target and topic branch/worktree
+path. These are local session details, not machine-specific paths to commit to
+project documents. If it is already dirty, preserve that state; do
+not stash, reset, or commit unrelated work to obtain a clean checkout. Example
+inspection from the original checkout:
+
+```sh
+primary_dir=$(git rev-parse --show-toplevel)
+git branch --show-current
+git rev-parse --abbrev-ref '@{upstream}'
+git rev-parse HEAD
+git status --porcelain=v1 --untracked-files=all
+git worktree list
+```
+
+A detached HEAD or missing upstream must be recorded explicitly; it prevents
+automatic post-merge refresh. Select the user's explicit PR target, defaulting
+to `origin/dbridge-2.0`. Fetch it and base new work on that remote tip, even when
+the original branch contains local-only commits. Example setup, adjusting the
+change, branch, target, and paths to the selected work:
+
+```sh
+change_name=example-change
+pr_remote=origin
+pr_base=dbridge-2.0
+topic_branch="work/$change_name"
+worktree_dir="$(dirname "$primary_dir")/.worktrees/$change_name/dbridge.nvim"
+git -C "$primary_dir" fetch "$pr_remote"
+git -C "$primary_dir" worktree add --no-track -b "$topic_branch" "$worktree_dir" "$pr_remote/$pr_base"
+cd "$worktree_dir"
+```
+
+`--no-track` prevents the topic from inheriting the integration branch as its
+upstream. Use a new path/branch or resume the existing worktree for this change
+after inspecting its branch, status, history, and PR. Do not overwrite another
+worktree or force a branch checkout.
+
+If the selected plan is absent from the target, transfer only its OpenSpec
+artifacts and necessary dependent edits into the worktree. Inspect local commits,
+staged/unstaged diffs, and untracked files by selected path; do not copy the whole
+checkout, blindly cherry-pick mixed commits, or treat unrelated plans as
+dependencies. Preserve the original copies and index. Include transferred
+artifacts in the scoped worktree commit. If a required dependency cannot be
+separated safely, report it before changing scope. Existing local changes can
+leave the original dirty or ahead after merge; the refresh rules below preserve
+them rather than silently cleaning them up.
+
+Run all implementation, document edits, OpenSpec commands, checks, and publication
+from this worktree. For cross-repository work, use paired paths
+`.worktrees/<change>/dbridge` and `.worktrees/<change>/dbridge.nvim`, each with its
+own linked change, topic branch, verification, commit, and PR. Client integration
+checks must explicitly select the paired server worktree:
+
+```sh
+uv sync --directory ../dbridge
+DBRIDGE_SERVER_CMD="$(cd ../dbridge && pwd)/.venv/bin/python -m dbridge.server" make test
+```
+
+This uses the harness override described under [local setup](#local-setup),
+including its restriction on paths containing spaces. Record the server revision
+used; do not assume a neighboring primary checkout contains the companion change.
+
+### Prepare the GitHub PR
+
+Verify the change with the owning repository's tooling, update affected docs,
+synchronize verified deltas, and archive the completed change. Inspect the full
+diff against the PR target, including transferred planning content. Stage only
+the selected paths and commit scoped changes in the worktree; never include
+unrelated user changes or generated caches. Push the topic with an explicit
+upstream:
+
+```sh
+git push -u "$pr_remote" "$topic_branch"
+```
+
+Create or update a GitHub PR with explicit base/head branches. Describe the
+problem, resulting change, checks run, and material limitations; link the
+companion PR for cross-repository work. When using `gh pr create`, pass the body
+through `--body-file` to preserve its text. Report PR and check status. An apply
+request authorizes this publication; it does not authorize merging the PR.
+
+### Refresh after merge
+
+Confirm GitHub reports the PR as merged into its intended target. Fetch and
+reinspect the original checkout before updating it. For example, use
+`gh pr view <number> --json state,baseRefName,headRefName,headRefOid,mergeCommit`
+from the topic worktree to inspect the PR; then run:
+
+```sh
+git -C "$primary_dir" fetch "$pr_remote"
+git -C "$primary_dir" branch --show-current
+git -C "$primary_dir" rev-parse --abbrev-ref '@{upstream}'
+git -C "$primary_dir" rev-parse HEAD
+git -C "$primary_dir" status --porcelain=v1 --untracked-files=all
+git -C "$primary_dir" rev-list --left-right --count "HEAD...$pr_remote/$pr_base"
+```
+
+Compare branch, upstream, and HEAD to the recorded baseline. Continue only when
+they still match, the original branch/upstream are the selected PR target, status is
+empty, and the first count (local-only commits) is zero. If the second count is
+also zero, no update is needed. Otherwise use:
+
+```sh
+git -C "$primary_dir" pull --ff-only "$pr_remote" "$pr_base"
+```
+
+Recheck branch, status, and HEAD afterward. Never switch the original branch to
+absorb the PR. If its branch/upstream/HEAD changed, it is dirty, it has no matching
+upstream, or it is ahead/diverged, leave it intact and report the fetched target
+and why refresh was skipped. Do not merge, rebase, reset, or stash to make the
+pull succeed. An ahead-only branch may say "already up to date" on a
+fast-forward-only pull, so the explicit local-only count is required.
+
+For linked PRs, confirm each merge and refresh each original independently. Once
+the topic's PR is confirmed merged, its worktree is clean, and its HEAD matches
+the merged PR's published `headRefOid` with no later or unpublished changes,
+remove only that worktree with `git worktree remove` without `--force`.
+Do not delete unmerged work or other worktrees. Optional branch cleanup must also
+be non-force; retain the branch if Git refuses, including after a squash merge.
+
 ## Completion and publication
 
-Record verification and remaining limitations with the change. After implementation
-is complete, request the archive workflow; synchronize verified delta specs where
-applicable, update backlog links to the archive location, and update roadmap
+Record verification and remaining limitations with the change. Apply includes
+synchronizing verified delta specs where applicable and archiving the completed
+change before its PR; update backlog links to the archive location and roadmap
 outcomes without treating a partial milestone as complete. A docs-only change
 can finish without new capability specs.
 
 There is currently no repository CI workflow or automated release pipeline, nor a
 Makefile lint/format target. Do not copy the server's PyPI/tag process into this
 plugin. Checks are run locally until an explicit change adds automation. Archiving
-does not commit or publish anything; staging, committing, pushing, tags, and
-releases require the user's authorization.
+does not itself commit or publish anything; the apply delivery workflow prepares
+the scoped commit and PR afterward under the authorization described above.

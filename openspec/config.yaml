@@ -9,6 +9,8 @@ context: |
   Future outcomes belong in docs/roadmap.md and deferred records in docs/backlog/.
   This repo owns editor/UI behavior; the server owns database behavior and DSP.
   Tests use mini.test child Neovim instances and the real server with isolated Profiles.
+  Apply plans in separate topic worktrees; preserve the original checkout.
+  Follow AGENTS.md and docs/development.md for PR delivery and post-merge refresh.
 
 rules:
   proposal:
@@ -28,6 +30,9 @@ rules:
 operations:
   apply:
     guidance:
+      - Follow AGENTS.md and docs/development.md worktree delivery; preserve the original checkout and use the fetched PR target as the topic base.
+      - Applying authorizes verified scoped commits, topic push, and a GitHub PR after synchronization/archive; merging and releasing need a separate request.
+      - After confirmed merge, refresh only the unchanged clean original checkout on the matching PR target with zero local-only commits and a fast-forward-only pull.
       - Keep the only implementation checklist in this change and unrelated findings in the owning backlog.
       - Match verification to risk; use isolated Profile/data locations and child-Neovim waits for runtime checks.
       - Preserve generated integrations and unrelated user changes; report checks run and not run separately.
