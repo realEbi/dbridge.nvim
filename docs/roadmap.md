@@ -21,6 +21,11 @@ product outcomes below. Publication and later product changes remain separate wo
 See the [verification record](../openspec/changes/archive/2026-09-23-adopt-openspec-documentation/tasks.md#verification-record)
 for checks completed and checks not run.
 
+The [worktree delivery migration](../openspec/changes/archive/2026-09-24-adopt-worktree-change-delivery/)
+adds isolated implementation, verified GitHub PR preparation, and guarded local
+refresh after merge. The [development guide](development.md#worktree-delivery)
+owns the procedure; this does not change the product sequence below.
+
 ## Proposed sequence
 
 The ordering below is a suggested dependency-aware progression, not an approved
